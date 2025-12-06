@@ -1,17 +1,15 @@
 package com.hotel.service;
 
 import com.hotel.repository.UserRepository;
+import com.hotel.security.CustomUserDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
 import java.util.Optional;
 
 /**
@@ -46,18 +44,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             throw new UsernameNotFoundException("用户已被禁用: " + username);
         }
 
-        // 构建用户权限
-        SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getRole());
-
-        // 构建Spring Security用户对象
-        return User.builder()
-                .username(user.getUsername())
-                .password(user.getPassword()) // 密码已经加密
-                .authorities(Collections.singletonList(authority))
-                .accountExpired(false)
-                .accountLocked(false)
-                .credentialsExpired(false)
-                .disabled(false)
-                .build();
+        // 返回自定义用户详情
+        return new CustomUserDetails(user);
     }
 }

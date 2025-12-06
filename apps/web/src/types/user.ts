@@ -5,8 +5,8 @@ export interface User {
   phone: string
   role: 'USER' | 'ADMIN'
   status: 'ACTIVE' | 'INACTIVE'
-  created_at: string
-  updated_at: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface CreateUserRequest {

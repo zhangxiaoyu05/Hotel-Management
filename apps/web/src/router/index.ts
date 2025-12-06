@@ -44,6 +44,19 @@ const routes: RouteRecordRaw[] = [
     path: '/auth/register',
     redirect: '/register'
   },
+  // 管理员路由
+  {
+    path: '/admin',
+    name: 'Admin',
+    redirect: '/admin/users',
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: '/admin/users',
+    name: 'UserManagement',
+    component: () => import('../pages/admin/users/UserManagement.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
 ]
 
 const router = createRouter({
@@ -67,9 +80,16 @@ router.beforeEach(async (to, from, next) => {
         name: 'Login',
         query: { redirect: to.fullPath }
       })
-    } else {
-      next()
+      return
     }
+
+    // 检查是否需要管理员权限
+    if (to.meta.requiresAdmin && !authStore.isAdmin) {
+      next({ path: '/' })
+      return
+    }
+
+    next()
   }
   // 检查是否是仅限游客访问的页面（如登录、注册）
   else if (to.meta.guestOnly && authStore.isAuthenticated) {

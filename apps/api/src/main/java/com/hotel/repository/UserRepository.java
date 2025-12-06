@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.hotel.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 @Mapper
@@ -58,4 +60,16 @@ public interface UserRepository extends BaseMapper<User> {
      */
     @Select("SELECT * FROM users WHERE id = #{id} AND status = #{status} AND deleted = 0")
     Optional<User> findByIdAndStatus(@Param("id") Long id, @Param("status") String status);
+
+    /**
+     * 批量更新用户状态
+     */
+    @Update("<script>" +
+            "UPDATE users SET status = #{status} WHERE id IN " +
+            "<foreach collection='userIds' item='id' open='(' close=')' separator=','>" +
+            "#{id}" +
+            "</foreach>" +
+            " AND deleted = 0" +
+            "</script>")
+    int updateStatusBatch(@Param("userIds") List<Long> userIds, @Param("status") String status);
 }

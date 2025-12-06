@@ -7,14 +7,22 @@ export interface User {
   username: string
   email: string
   phone: string
-  role: string
-  status: string
+  role: 'USER' | 'ADMIN'
+  status: 'ACTIVE' | 'INACTIVE'
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Permission {
+  code: string
+  description: string
 }
 
 export const useAuthStore = defineStore('auth', () => {
   // 状态
   const user = ref<User | null>(null)
   const token = ref<string | null>(null)
+  const permissions = ref<string[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -22,6 +30,30 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const isAdmin = computed(() => user.value?.role === 'ADMIN')
   const isActive = computed(() => user.value?.status === 'ACTIVE')
+
+  // 权限检查方法
+  const hasPermission = (permission: string): boolean => {
+    if (!user.value || !permissions.value) return false
+    // 管理员拥有所有权限
+    if (user.value.role === 'ADMIN') return true
+    return permissions.value.includes(permission)
+  }
+
+  const hasRole = (role: string): boolean => {
+    return user.value?.role === role
+  }
+
+  const canAccess = (resource: string, resourceId?: string): boolean => {
+    if (!user.value) return false
+
+    // 管理员可以访问所有资源
+    if (user.value.role === 'ADMIN') return true
+
+    // 普通用户只能访问自己的资源
+    if (resourceId && user.value.id.toString() === resourceId) return true
+
+    return false
+  }
 
   // 初始化 - 从localStorage恢复状态
   const initializeAuth = () => {
@@ -153,10 +185,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // 更新权限信息
+  const updatePermissions = (newPermissions: string[]) => {
+    permissions.value = newPermissions
+    localStorage.setItem('user_permissions', JSON.stringify(newPermissions))
+  }
+
+  // 清除权限信息
+  const clearPermissions = () => {
+    permissions.value = []
+    localStorage.removeItem('user_permissions')
+  }
+
   return {
     // 状态
     user: readonly(user),
     token: readonly(token),
+    permissions: readonly(permissions),
     loading: readonly(loading),
     error: readonly(error),
 
@@ -164,6 +209,11 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isAdmin,
     isActive,
+
+    // 权限检查方法
+    hasPermission,
+    hasRole,
+    canAccess,
 
     // 方法
     initializeAuth,
@@ -173,6 +223,8 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     refreshToken,
     getCurrentUser,
-    checkAuthStatus
+    checkAuthStatus,
+    updatePermissions,
+    clearPermissions
   }
 })
