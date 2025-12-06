@@ -75,3 +75,8 @@ temp/
 # Package manager lock files (keep one, remove others based on preference)
 # package-lock.json
 yarn.lock
+
+# Claude related files
+.bmad-core/
+.claude/
+run_claude.bat
