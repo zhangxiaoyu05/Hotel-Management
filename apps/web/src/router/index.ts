@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -24,14 +25,24 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
-    path: '/auth/login',
+    path: '/login',
     name: 'Login',
-    component: () => import('../pages/auth/Login.vue'),
+    component: () => import('../pages/Login.vue'),
+    meta: { guestOnly: true },
+  },
+  {
+    path: '/auth/login',
+    redirect: '/login'
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../pages/Register.vue'),
+    meta: { guestOnly: true },
   },
   {
     path: '/auth/register',
-    name: 'Register',
-    component: () => import('../pages/auth/Register.vue'),
+    redirect: '/register'
   },
 ]
 
@@ -41,15 +52,28 @@ const router = createRouter({
 })
 
 // Navigation guard for protected routes
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore()
+
+  // 初始化认证状态
+  if (!authStore.isAuthenticated && authStore.token) {
+    authStore.initializeAuth()
+  }
+
+  // 检查是否需要认证
   if (to.meta.requiresAuth) {
-    // TODO: Check authentication status
-    const isAuthenticated = localStorage.getItem('token')
-    if (!isAuthenticated) {
-      next({ name: 'Login' })
+    if (!authStore.isAuthenticated) {
+      next({
+        name: 'Login',
+        query: { redirect: to.fullPath }
+      })
     } else {
       next()
     }
+  }
+  // 检查是否是仅限游客访问的页面（如登录、注册）
+  else if (to.meta.guestOnly && authStore.isAuthenticated) {
+    next({ path: '/' })
   } else {
     next()
   }

@@ -2,6 +2,7 @@ package com.hotel.controller.auth;
 
 import com.hotel.dto.AuthResponse;
 import com.hotel.dto.CreateUserRequest;
+import com.hotel.dto.LoginRequest;
 import com.hotel.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -71,6 +72,42 @@ public class AuthController {
         } catch (Exception e) {
             logger.error("用户注册失败 - 系统错误: {}", e.getMessage(), e);
             AuthResponse response = AuthResponse.error("注册失败，请稍后重试");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    @PostMapping("/login")
+    @Operation(summary = "用户登录", description = "使用用户名、邮箱或手机号进行登录")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "登录成功",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = AuthResponse.class))),
+            @ApiResponse(responseCode = "401", description = "用户名或密码错误",
+                    content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "400", description = "请求参数错误",
+                    content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "500", description = "服务器内部错误",
+                    content = @Content(mediaType = "application/json"))
+    })
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
+        logger.info("收到登录请求: {}", loginRequest.getIdentifier());
+
+        try {
+            AuthResponse.Data loginData = userService.login(loginRequest);
+
+            AuthResponse response = AuthResponse.success("登录成功", loginData);
+            logger.info("用户登录成功: {}", loginRequest.getIdentifier());
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            logger.warn("登录失败 - 参数错误: {}", e.getMessage());
+            AuthResponse response = AuthResponse.error(e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+
+        } catch (Exception e) {
+            logger.error("登录失败 - 系统错误: {}", e.getMessage(), e);
+            AuthResponse response = AuthResponse.error("登录失败，请稍后重试");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }

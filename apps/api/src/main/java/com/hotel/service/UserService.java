@@ -2,9 +2,11 @@ package com.hotel.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hotel.dto.CreateUserRequest;
+import com.hotel.dto.LoginRequest;
 import com.hotel.dto.AuthResponse;
 import com.hotel.entity.User;
 import com.hotel.repository.UserRepository;
+import com.hotel.util.JwtUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +28,9 @@ public class UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     /**
      * 用户注册
@@ -177,5 +182,78 @@ public class UserService {
         userRepository.updateById(user);
 
         return user;
+    }
+
+    /**
+     * 用户登录
+     */
+    @Transactional(readOnly = true)
+    public AuthResponse.Data login(LoginRequest loginRequest) {
+        logger.info("用户登录请求: {}", loginRequest.getIdentifier());
+
+        // 根据登录标识查找用户
+        Optional<User> userOpt = userRepository.findByIdentifier(loginRequest.getIdentifier());
+
+        if (userOpt.isEmpty()) {
+            logger.warn("登录失败 - 用户不存在: {}", loginRequest.getIdentifier());
+            throw new IllegalArgumentException("用户名、邮箱或手机号不存在");
+        }
+
+        User user = userOpt.get();
+
+        // 检查用户状态
+        if (!"ACTIVE".equals(user.getStatus())) {
+            logger.warn("登录失败 - 用户已禁用: {}", user.getUsername());
+            throw new IllegalArgumentException("账户已被禁用，请联系管理员");
+        }
+
+        // 验证密码
+        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+            logger.warn("登录失败 - 密码错误: {}", user.getUsername());
+            throw new IllegalArgumentException("用户名或密码错误");
+        }
+
+        logger.info("用户登录成功: {}", user.getUsername());
+
+        // 生成JWT令牌
+        String token = jwtUtil.generateToken(user.getUsername(), user.getId(), user.getRole());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getId());
+
+        // 构建响应数据
+        AuthResponse.Data data = new AuthResponse.Data();
+        data.setToken(token);
+        data.setAccessToken(token);
+        data.setRefreshToken(refreshToken);
+        data.setExpiresIn(86400L); // 24小时
+
+        AuthResponse.User userResponse = new AuthResponse.User();
+        userResponse.setId(user.getId());
+        userResponse.setUsername(user.getUsername());
+        userResponse.setEmail(user.getEmail());
+        userResponse.setPhone(user.getPhone());
+        userResponse.setRole(user.getRole());
+        userResponse.setStatus(user.getStatus());
+
+        data.setUser(userResponse);
+
+        // 更新最后登录时间
+        updateUserLastLogin(user.getId());
+
+        return data;
+    }
+
+    /**
+     * 更新用户最后登录时间
+     */
+    private void updateUserLastLogin(Long userId) {
+        try {
+            // 使用更高效的更新方式，避免先查询再更新
+            User user = new User();
+            user.setId(userId);
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.updateById(user);
+        } catch (Exception e) {
+            logger.warn("更新用户最后登录时间失败: userId={}, error={}", userId, e.getMessage());
+        }
     }
 }

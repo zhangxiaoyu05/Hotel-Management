@@ -1,31 +1,59 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElForm, ElFormItem, ElInput, ElButton, ElMessage, ElCard } from 'element-plus'
-import { useUserStore } from '../stores/user'
+import { ElForm, ElFormItem, ElInput, ElButton, ElMessage, ElCard, ElCheckbox } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
+import type { LoginRequest } from '@/services/authService'
 
 const router = useRouter()
-const userStore = useUserStore()
+const authStore = useAuthStore()
 
 const loginForm = reactive({
-  username: '',
-  password: ''
+  login: '', // 支持用户名、邮箱或手机号
+  password: '',
+  rememberMe: false
 })
 
 const loading = ref(false)
+const formRef = ref()
 
-const rules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度应在 3 到 20 个字符', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度应在 6 到 20 个字符', trigger: 'blur' }
-  ]
+const validateLoginInput = (rule: any, value: string, callback: any) => {
+  if (!value) {
+    callback(new Error('请输入用户名、邮箱或手机号'))
+  } else if (value.includes('@')) {
+    // 简单的邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(value)) {
+      callback(new Error('请输入有效的邮箱地址'))
+    } else {
+      callback()
+    }
+  } else if (/^\d+$/.test(value)) {
+    // 纯数字，验证手机号
+    const phoneRegex = /^1[3-9]\d{9}$/
+    if (!phoneRegex.test(value)) {
+      callback(new Error('请输入有效的手机号'))
+    } else {
+      callback()
+    }
+  } else {
+    // 用户名
+    if (value.length < 3 || value.length > 20) {
+      callback(new Error('用户名长度应在 3 到 20 个字符'))
+    } else {
+      callback()
+    }
+  }
 }
 
-const formRef = ref()
+const rules = {
+  login: [
+    { validator: validateLoginInput, trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' }
+  ]
+}
 
 const handleLogin = async () => {
   if (!formRef.value) return
@@ -34,22 +62,44 @@ const handleLogin = async () => {
     await formRef.value.validate()
     loading.value = true
 
-    const success = await userStore.login(loginForm)
-
-    if (success) {
-      ElMessage.success('登录成功')
-      const redirectPath = router.currentRoute.value.query.redirect as string
-      router.push(redirectPath || '/')
-    } else {
-      ElMessage.error('用户名或密码错误')
+    const loginData: LoginRequest = {
+      identifier: loginForm.login,
+      password: loginForm.password
     }
-  } catch (error) {
+
+    await authStore.login(loginData)
+
+    ElMessage.success('登录成功')
+
+    // 如果选择了记住我，保存登录状态到 localStorage
+    if (loginForm.rememberMe) {
+      localStorage.setItem('remember_me', 'true')
+      localStorage.setItem('last_login', loginForm.login)
+    } else {
+      localStorage.removeItem('remember_me')
+      localStorage.removeItem('last_login')
+    }
+
+    const redirectPath = router.currentRoute.value.query.redirect as string
+    router.push(redirectPath || '/')
+  } catch (error: any) {
     console.error('Login error:', error)
-    ElMessage.error('登录失败，请重试')
+    ElMessage.error(error.message || '登录失败，请重试')
   } finally {
     loading.value = false
   }
 }
+
+// 组件挂载时检查是否需要恢复登录信息
+onMounted(() => {
+  const rememberMe = localStorage.getItem('remember_me')
+  const lastLogin = localStorage.getItem('last_login')
+
+  if (rememberMe === 'true' && lastLogin) {
+    loginForm.login = lastLogin
+    loginForm.rememberMe = true
+  }
+})
 </script>
 
 <template>
@@ -70,11 +120,12 @@ const handleLogin = async () => {
           label-width="0"
           size="large"
         >
-          <ElFormItem prop="username">
+          <ElFormItem prop="login">
             <ElInput
-              v-model="loginForm.username"
-              placeholder="请输入用户名"
+              v-model="loginForm.login"
+              placeholder="请输入用户名、邮箱或手机号"
               prefix-icon="User"
+              @keyup.enter="handleLogin"
             />
           </ElFormItem>
 
@@ -87,6 +138,12 @@ const handleLogin = async () => {
               show-password
               @keyup.enter="handleLogin"
             />
+          </ElFormItem>
+
+          <ElFormItem>
+            <ElCheckbox v-model="loginForm.rememberMe">
+              记住我
+            </ElCheckbox>
           </ElFormItem>
 
           <ElFormItem>
