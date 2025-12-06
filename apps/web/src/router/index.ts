@@ -24,14 +24,14 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
-    path: '/login',
+    path: '/auth/login',
     name: 'Login',
-    component: () => import('../pages/Login.vue'),
+    component: () => import('../pages/auth/Login.vue'),
   },
   {
-    path: '/register',
+    path: '/auth/register',
     name: 'Register',
-    component: () => import('../pages/Register.vue'),
+    component: () => import('../pages/auth/Register.vue'),
   },
 ]
 

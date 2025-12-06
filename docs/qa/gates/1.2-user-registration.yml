@@ -1,0 +1,72 @@
+schema: 1
+story: "1.2"
+story_title: "用户注册功能"
+gate: CONCERNS
+status_reason: "注册功能整体实现良好，但存在一些安全和性能方面的改进建议"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-06T10:00:00Z"
+
+# Issues found during review
+top_issues:
+  - id: "SEC-001"
+    severity: medium
+    finding: "注册端点缺少速率限制，存在暴力破解风险"
+    suggested_action: "添加注册API的速率限制中间件"
+    refs: ["apps/api/src/main/java/com/hotel/controller/auth/AuthController.java:32-76"]
+  - id: "SEC-002"
+    severity: medium
+    finding: "前端验证规则与后端不完全一致，可能绕过验证"
+    suggested_action: "统一前后端验证规则，确保一致性"
+    refs: ["apps/web/src/pages/auth/Register.vue:114-154", "apps/api/src/main/java/com/hotel/dto/CreateUserRequest.java:10-28"]
+  - id: "PERF-001"
+    severity: low
+    finding: "缺少输入数据的清理和标准化处理"
+    suggested_action: "添加输入数据trim和标准化处理"
+    refs: ["apps/api/src/main/java/com/hotel/service/UserService.java:33-90"]
+
+# Risk summary
+risk_summary:
+  totals: { critical: 0, high: 0, medium: 2, low: 1 }
+  recommendations:
+    must_fix: ["添加API速率限制", "统一前后端验证规则"]
+    monitor: ["监控注册失败率", "观察异常注册模式"]
+
+# Quality evidence
+evidence:
+  tests_reviewed: 27
+  risks_identified: 3
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+# NFR validation
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: "密码加密正确，但缺少速率限制和输入清理"
+  performance:
+    status: PASS
+    notes: "响应时间正常，无性能瓶颈"
+  reliability:
+    status: PASS
+    notes: "错误处理完善，系统稳定性良好"
+  maintainability:
+    status: PASS
+    notes: "代码结构清晰，注释充分"
+
+# Recommendations
+recommendations:
+  immediate:
+    - action: "添加注册API速率限制"
+      refs: ["apps/api/src/main/java/com/hotel/controller/auth/AuthController.java"]
+    - action: "统一前后端邮箱验证正则表达式"
+      refs: ["apps/web/src/pages/auth/Register.vue:146-154", "apps/api/src/main/java/com/hotel/controller/auth/AuthController.java:129-133"]
+  future:
+    - action: "考虑添加验证码防护"
+      refs: ["apps/web/src/pages/auth/Register.vue"]
+    - action: "添加输入数据标准化处理"
+      refs: ["apps/api/src/main/java/com/hotel/service/UserService.java"]
+
+# Optional fields
+quality_score: 70
+expires: "2025-12-20T10:00:00Z"
