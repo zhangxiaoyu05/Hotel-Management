@@ -11,6 +11,11 @@ export interface User {
   status: 'ACTIVE' | 'INACTIVE'
   createdAt: string
   updatedAt: string
+  nickname?: string
+  avatar?: string
+  realName?: string
+  gender?: 'MALE' | 'FEMALE' | 'OTHER'
+  birthDate?: string
 }
 
 export interface Permission {
@@ -197,6 +202,12 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('user_permissions')
   }
 
+  // 更新用户信息
+  const setUser = (newUser: User) => {
+    user.value = newUser
+    localStorage.setItem('auth_user', JSON.stringify(newUser))
+  }
+
   return {
     // 状态
     user: readonly(user),
@@ -225,6 +236,7 @@ export const useAuthStore = defineStore('auth', () => {
     getCurrentUser,
     checkAuthStatus,
     updatePermissions,
-    clearPermissions
+    clearPermissions,
+    setUser
   }
 })

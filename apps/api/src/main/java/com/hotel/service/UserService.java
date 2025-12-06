@@ -1,8 +1,10 @@
 package com.hotel.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.hotel.dto.ChangePasswordRequest;
 import com.hotel.dto.CreateUserRequest;
 import com.hotel.dto.LoginRequest;
+import com.hotel.dto.UpdateProfileRequest;
 import com.hotel.dto.AuthResponse;
 import com.hotel.entity.User;
 import com.hotel.repository.UserRepository;
@@ -254,6 +256,129 @@ public class UserService {
             userRepository.updateById(user);
         } catch (Exception e) {
             logger.warn("更新用户最后登录时间失败: userId={}, error={}", userId, e.getMessage());
+        }
+    }
+
+    /**
+     * 根据用户名获取用户信息
+     */
+    @Transactional(readOnly = true)
+    public User getUserByUsername(String username) {
+        Optional<User> userOpt = userRepository.findByUsername(username);
+        if (userOpt.isEmpty()) {
+            throw new IllegalArgumentException("用户不存在");
+        }
+        return userOpt.get();
+    }
+
+    /**
+     * 更新用户资料
+     */
+    public User updateUserProfile(String username, UpdateProfileRequest updateRequest) {
+        logger.info("开始更新用户资料: {}", username);
+
+        try {
+            // 获取当前用户
+            Optional<User> userOpt = userRepository.findByUsername(username);
+            if (userOpt.isEmpty()) {
+                throw new IllegalArgumentException("用户不存在");
+            }
+
+            User user = userOpt.get();
+
+            // 检查邮箱是否已被其他用户使用
+            if (updateRequest.getEmail() != null && !updateRequest.getEmail().equals(user.getEmail())) {
+                if (userRepository.existsByEmail(updateRequest.getEmail())) {
+                    throw new IllegalArgumentException("邮箱已被其他用户使用");
+                }
+            }
+
+            // 检查手机号是否已被其他用户使用
+            if (updateRequest.getPhone() != null && !updateRequest.getPhone().equals(user.getPhone())) {
+                if (userRepository.existsByPhone(updateRequest.getPhone())) {
+                    throw new IllegalArgumentException("手机号已被其他用户使用");
+                }
+            }
+
+            // 更新用户信息
+            if (updateRequest.getNickname() != null) {
+                user.setNickname(updateRequest.getNickname());
+            }
+            if (updateRequest.getRealName() != null) {
+                user.setRealName(updateRequest.getRealName());
+            }
+            if (updateRequest.getGender() != null) {
+                user.setGender(updateRequest.getGender());
+            }
+            if (updateRequest.getBirthDate() != null) {
+                user.setBirthDate(updateRequest.getBirthDate());
+            }
+            if (updateRequest.getAvatar() != null) {
+                user.setAvatar(updateRequest.getAvatar());
+            }
+            if (updateRequest.getEmail() != null) {
+                user.setEmail(updateRequest.getEmail());
+            }
+            if (updateRequest.getPhone() != null) {
+                user.setPhone(updateRequest.getPhone());
+            }
+
+            user.setUpdatedAt(LocalDateTime.now());
+
+            // 保存更新
+            userRepository.updateById(user);
+
+            logger.info("用户资料更新成功: {}", username);
+            return user;
+
+        } catch (IllegalArgumentException e) {
+            logger.warn("用户资料更新失败 - 参数错误: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("用户资料更新失败 - 系统错误: {}", e.getMessage(), e);
+            throw new RuntimeException("更新用户资料失败，请稍后重试");
+        }
+    }
+
+    /**
+     * 修改密码
+     */
+    public void changePassword(String username, ChangePasswordRequest changePasswordRequest) {
+        logger.info("开始修改用户密码: {}", username);
+
+        try {
+            // 获取当前用户
+            Optional<User> userOpt = userRepository.findByUsername(username);
+            if (userOpt.isEmpty()) {
+                throw new IllegalArgumentException("用户不存在");
+            }
+
+            User user = userOpt.get();
+
+            // 验证当前密码
+            if (!passwordEncoder.matches(changePasswordRequest.getCurrentPassword(), user.getPassword())) {
+                throw new IllegalArgumentException("当前密码不正确");
+            }
+
+            // 检查新密码是否与当前密码相同
+            if (passwordEncoder.matches(changePasswordRequest.getNewPassword(), user.getPassword())) {
+                throw new IllegalArgumentException("新密码不能与当前密码相同");
+            }
+
+            // 更新密码
+            user.setPassword(passwordEncoder.encode(changePasswordRequest.getNewPassword()));
+            user.setUpdatedAt(LocalDateTime.now());
+
+            userRepository.updateById(user);
+
+            logger.info("用户密码修改成功: {}", username);
+
+        } catch (IllegalArgumentException e) {
+            logger.warn("用户密码修改失败 - 参数错误: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("用户密码修改失败 - 系统错误: {}", e.getMessage(), e);
+            throw new RuntimeException("修改密码失败，请稍后重试");
         }
     }
 }

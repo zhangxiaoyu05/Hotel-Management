@@ -29,6 +29,16 @@ apiClient.interceptors.request.use(
 // 响应拦截器
 apiClient.interceptors.response.use(
   (response) => {
+    // 如果后端返回的是 ApiResponse 格式，解包返回 data
+    if (response.data && typeof response.data === 'object' && 'success' in response.data) {
+      if (response.data.success) {
+        return response
+      } else {
+        // 处理业务错误
+        ElMessage.error(response.data.message || '操作失败')
+        return Promise.reject(new Error(response.data.message || '操作失败'))
+      }
+    }
     return response
   },
   (error) => {

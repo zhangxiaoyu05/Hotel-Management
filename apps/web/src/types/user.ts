@@ -7,6 +7,11 @@ export interface User {
   status: 'ACTIVE' | 'INACTIVE'
   createdAt: string
   updatedAt: string
+  nickname?: string
+  avatar?: string
+  realName?: string
+  gender?: 'MALE' | 'FEMALE' | 'OTHER'
+  birthDate?: string
 }
 
 export interface CreateUserRequest {
@@ -47,6 +52,28 @@ export interface UserListResponse {
     total: number
     page: number
     pageSize: number
+  }
+}
+
+export interface UpdateProfileRequest {
+  nickname?: string
+  realName?: string
+  gender?: 'MALE' | 'FEMALE' | 'OTHER'
+  birthDate?: string
+  avatar?: string
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
+}
+
+export interface UploadAvatarResponse {
+  success: boolean
+  message: string
+  data?: {
+    url: string
   }
 }
 

@@ -23,6 +23,21 @@ public class User {
     @TableField("phone")
     private String phone;
 
+    @TableField("nickname")
+    private String nickname;
+
+    @TableField("avatar")
+    private String avatar;
+
+    @TableField("real_name")
+    private String realName;
+
+    @TableField("gender")
+    private String gender;
+
+    @TableField("birth_date")
+    private String birthDate;
+
     @TableField("password")
     private String password;
 
