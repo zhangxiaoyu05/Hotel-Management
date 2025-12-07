@@ -43,6 +43,15 @@ public class Order {
     @TableField("special_requests")
     private String specialRequests;
 
+    @TableField("cancel_reason")
+    private String cancelReason;
+
+    @TableField("refund_amount")
+    private BigDecimal refundAmount;
+
+    @TableField("modified_at")
+    private LocalDateTime modifiedAt;
+
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 

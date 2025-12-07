@@ -28,6 +28,7 @@ public class OrderResponse {
     private Room room;
     private Hotel hotel;
     private PriceBreakdown priceBreakdown;
+    private RefundInfo refundInfo;
 
     @Data
     public static class PriceBreakdown {
@@ -36,5 +37,14 @@ public class OrderResponse {
         private BigDecimal discountAmount;
         private BigDecimal totalPrice;
         private Integer nights;
+        private BigDecimal roomRate;
+        private BigDecimal taxAmount;
+        private String couponCode;
+    }
+
+    @Data
+    public static class RefundInfo {
+        private BigDecimal refundAmount;
+        private String cancelReason;
     }
 }

@@ -6,6 +6,7 @@ import com.hotel.dto.ApiResponse;
 import com.hotel.dto.order.CreateOrderRequest;
 import com.hotel.dto.order.OrderListResponse;
 import com.hotel.dto.order.OrderResponse;
+import com.hotel.dto.order.UpdateOrderRequest;
 import com.hotel.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -37,17 +38,34 @@ public class OrderController extends BaseController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<OrderListResponse>>> getUserOrders(
-            @RequestParam(required = false) String status) {
-        List<OrderListResponse> response = orderService.getUserOrders(status);
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortOrder,
+            @RequestParam(required = false) String search) {
+        List<OrderListResponse> response = orderService.getOrderList(status, page, size, sortBy, sortOrder, search);
+        return ResponseEntity.ok(success(response));
+    }
+
+    @PutMapping("/{id}")
+    @RateLimit(period = 60, limit = 30, type = RateLimit.LimitType.USER,
+              prefix = "order_update", message = "订单更新操作过于频繁，请稍后再试")
+    public ResponseEntity<ApiResponse<OrderResponse>> updateOrder(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateOrderRequest request) {
+        OrderResponse response = orderService.updateOrder(id, request);
         return ResponseEntity.ok(success(response));
     }
 
     @PutMapping("/{id}/cancel")
     @RateLimit(period = 60, limit = 20, type = RateLimit.LimitType.USER,
               prefix = "order_cancel", message = "订单取消操作过于频繁，请稍后再试")
-    public ResponseEntity<ApiResponse<Boolean>> cancelOrder(@PathVariable Long id) {
-        boolean result = orderService.cancelOrder(id);
-        return ResponseEntity.ok(success(result));
+    public ResponseEntity<ApiResponse<OrderResponse>> cancelOrder(
+            @PathVariable Long id,
+            @RequestBody(required = false) String cancelReason) {
+        OrderResponse response = orderService.cancelOrder(id, cancelReason);
+        return ResponseEntity.ok(success(response));
     }
 
     @GetMapping("/number/{orderNumber}")

@@ -1,6 +1,7 @@
 package com.hotel.service;
 
 import com.hotel.dto.order.CreateOrderRequest;
+import com.hotel.dto.order.UpdateOrderRequest;
 import com.hotel.dto.order.OrderResponse;
 import com.hotel.entity.Order;
 import com.hotel.entity.Room;
@@ -213,6 +214,134 @@ class OrderServiceTest {
 
             assertNotNull(response);
             assertTrue(response.getPriceBreakdown().getDiscountAmount().compareTo(BigDecimal.ZERO) > 0);
+        }
+    }
+
+    @Test
+    void updateOrder_Success() {
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+
+            Order existingOrder = new Order();
+            existingOrder.setId(1L);
+            existingOrder.setUserId(1L);
+            existingOrder.setStatus("CONFIRMED");
+            existingOrder.setCheckInDate(LocalDate.now().plusDays(2));
+            existingOrder.setSpecialRequests("原特殊要求");
+
+            when(orderRepository.selectById(1L)).thenReturn(existingOrder);
+            when(orderRepository.updateById(any(Order.class))).thenReturn(1);
+            when(roomRepository.selectById(1L)).thenReturn(mockRoom);
+            when(hotelRepository.selectById(1L)).thenReturn(mockHotel);
+
+            UpdateOrderRequest updateRequest = new UpdateOrderRequest();
+            updateRequest.setSpecialRequests("新的特殊要求");
+
+            OrderResponse response = orderService.updateOrder(1L, updateRequest);
+
+            assertNotNull(response);
+            verify(orderRepository).updateById(any(Order.class));
+        }
+    }
+
+    @Test
+    void updateOrder_OrderNotModifiable_ThrowsException() {
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+
+            Order existingOrder = new Order();
+            existingOrder.setId(1L);
+            existingOrder.setUserId(1L);
+            existingOrder.setStatus("COMPLETED"); // 已完成的订单不能修改
+
+            when(orderRepository.selectById(1L)).thenReturn(existingOrder);
+
+            UpdateOrderRequest updateRequest = new UpdateOrderRequest();
+            updateRequest.setSpecialRequests("新的特殊要求");
+
+            assertThrows(RuntimeException.class, () -> orderService.updateOrder(1L, updateRequest));
+        }
+    }
+
+    @Test
+    void cancelOrderWithRefund_FullRefund() {
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+
+            Order order = new Order();
+            order.setId(1L);
+            order.setUserId(1L);
+            order.setStatus("CONFIRMED");
+            order.setCheckInDate(LocalDate.now().plusDays(10)); // 提前10天，应该全额退款
+            order.setTotalPrice(new BigDecimal("1000.00"));
+
+            when(orderRepository.selectById(1L)).thenReturn(order);
+            when(orderRepository.updateById(any(Order.class))).thenReturn(1);
+            when(roomRepository.selectById(1L)).thenReturn(mockRoom);
+            when(hotelRepository.selectById(1L)).thenReturn(mockHotel);
+
+            OrderResponse response = orderService.cancelOrder(1L, "行程变更");
+
+            assertNotNull(response);
+            assertEquals("CANCELLED", response.getStatus());
+            assertNotNull(response.getRefundInfo());
+            assertEquals(new BigDecimal("1000.00"), response.getRefundInfo().getRefundAmount());
+        }
+    }
+
+    @Test
+    void cancelOrderWithRefund_PartialRefund() {
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+
+            Order order = new Order();
+            order.setId(1L);
+            order.setUserId(1L);
+            order.setStatus("CONFIRMED");
+            order.setCheckInDate(LocalDate.now().plusDays(5)); // 提前5天，应该退款80%
+            order.setTotalPrice(new BigDecimal("1000.00"));
+
+            when(orderRepository.selectById(1L)).thenReturn(order);
+            when(orderRepository.updateById(any(Order.class))).thenReturn(1);
+            when(roomRepository.selectById(1L)).thenReturn(mockRoom);
+            when(hotelRepository.selectById(1L)).thenReturn(mockHotel);
+
+            OrderResponse response = orderService.cancelOrder(1L, "行程变更");
+
+            assertNotNull(response);
+            assertEquals("CANCELLED", response.getStatus());
+            assertNotNull(response.getRefundInfo());
+            assertEquals(new BigDecimal("800.00"), response.getRefundInfo().getRefundAmount());
+        }
+    }
+
+    @Test
+    void getOrderList_WithFilters_Success() {
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
+
+            Order order1 = new Order();
+            order1.setId(1L);
+            order1.setUserId(1L);
+            order1.setStatus("CONFIRMED");
+            order1.setOrderNumber("ORD-001");
+
+            Order order2 = new Order();
+            order2.setId(2L);
+            order2.setUserId(1L);
+            order2.setStatus("PENDING");
+            order2.setOrderNumber("ORD-002");
+
+            List<Order> orders = Arrays.asList(order1, order2);
+
+            when(orderRepository.selectList(any())).thenReturn(orders);
+            when(roomRepository.selectById(1L)).thenReturn(mockRoom);
+            when(hotelRepository.selectById(1L)).thenReturn(mockHotel);
+
+            var result = orderService.getOrderList("CONFIRMED", 1, 10, "createdAt", "desc", null);
+
+            assertNotNull(result);
+            verify(orderRepository).selectList(any());
         }
     }
 }

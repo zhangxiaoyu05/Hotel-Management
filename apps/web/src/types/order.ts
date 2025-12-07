@@ -10,6 +10,13 @@ export interface CreateOrderRequest {
   couponCode?: string
 }
 
+export interface UpdateOrderRequest {
+  guestName?: string
+  guestPhone?: string
+  guestEmail?: string
+  specialRequests?: string
+}
+
 export interface Order {
   id: number
   orderNumber: string
@@ -21,6 +28,9 @@ export interface Order {
   totalPrice: number
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED'
   specialRequests?: string
+  cancelReason?: string
+  refundAmount?: number
+  modifiedAt?: string
   createdAt: string
   updatedAt: string
 }
@@ -33,11 +43,28 @@ export interface PriceBreakdown {
   nights: number
 }
 
+export interface RefundInfo {
+  refundAmount: number
+  cancelReason: string
+}
+
 export interface OrderResponse {
-  order: Order
+  id: number
+  orderNumber: string
+  userId: number
+  roomId: number
+  checkInDate: string
+  checkOutDate: string
+  guestCount: number
+  totalPrice: number
+  status: string
+  specialRequests?: string
+  createdAt: string
+  updatedAt: string
   room: Room
   hotel: Hotel
-  priceBreakdown: PriceBreakdown
+  priceBreakdown?: PriceBreakdown
+  refundInfo?: RefundInfo
 }
 
 export interface OrderListResponse {
