@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { roomApi } from '@/api/room';
+import { roomStatusService } from '@/services/roomStatusService';
 import type { Room, RoomSearchRequest, RoomListResponse, RoomType } from '@/types/room';
+import type { RoomStatusLog, RoomStatusUpdateRequest } from '@/services/roomStatusService';
 import { ElMessage } from 'element-plus';
 
 // 房间搜索历史类型
@@ -37,6 +39,11 @@ export const useRoomStore = defineStore('room', () => {
   // 搜索历史
   const searchHistory = ref<SearchHistory[]>([]);
   const maxSearchHistory = 10;
+
+  // 状态管理相关状态
+  const statusLogs = ref<RoomStatusLog[]>([]);
+  const statusLoading = ref(false);
+  const roomAvailabilityCache = ref<Map<number, boolean>>(new Map());
 
   // 计算属性
   const hasNextPage = computed(() => currentPage.value + 1 < totalPages.value);
@@ -422,6 +429,174 @@ export const useRoomStore = defineStore('room', () => {
     localStorage.removeItem('room_search_history');
   };
 
+  // 更新房间状态
+  const updateRoomStatus = async (roomId: number, data: RoomStatusUpdateRequest) => {
+    statusLoading.value = true;
+    try {
+      const result = await roomStatusService.updateRoomStatus(roomId, data);
+
+      if (result.success) {
+        ElMessage.success('房间状态更新成功');
+
+        // 更新本地房间数据
+        const roomIndex = rooms.value.findIndex(room => room.id === roomId);
+        if (roomIndex !== -1) {
+          const oldStatus = rooms.value[roomIndex].status;
+          rooms.value[roomIndex].status = data.status;
+          rooms.value[roomIndex].version = (rooms.value[roomIndex].version || 1) + 1;
+        }
+
+        // 更新当前房间
+        if (currentRoom.value?.id === roomId) {
+          currentRoom.value.status = data.status;
+          currentRoom.value.version = (currentRoom.value.version || 1) + 1;
+        }
+
+        return true;
+      } else if (result.conflict) {
+        ElMessage.error(result.conflict.message || '房间已被其他用户修改，请刷新后重试');
+        return false;
+      }
+    } catch (error: any) {
+      console.error('更新房间状态失败:', error);
+      ElMessage.error(error.message || '更新房间状态失败');
+      return false;
+    } finally {
+      statusLoading.value = false;
+    }
+  };
+
+  // 获取房间状态变更日志
+  const fetchRoomStatusLogs = async (
+    roomId: number,
+    params: { page?: number; size?: number; startDate?: string; endDate?: string } = {}
+  ) => {
+    statusLoading.value = true;
+    try {
+      const logs = await roomStatusService.getRoomStatusLogs(roomId, params);
+      statusLogs.value = logs.records;
+      return logs;
+    } catch (error) {
+      console.error('获取房间状态日志失败:', error);
+      ElMessage.error('获取房间状态日志失败');
+      return null;
+    } finally {
+      statusLoading.value = false;
+    }
+  };
+
+  // 获取最近状态变更记录
+  const fetchRecentStatusLogs = async (roomId: number, limit: number = 10) => {
+    try {
+      const logs = await roomStatusService.getRecentStatusLogs(roomId, limit);
+      return logs;
+    } catch (error) {
+      console.error('获取最近状态变更记录失败:', error);
+      ElMessage.error('获取最近状态变更记录失败');
+      return [];
+    }
+  };
+
+  // 检查房间可用性（带缓存）
+  const checkRoomAvailability = async (roomId: number, useCache: boolean = true) => {
+    // 检查缓存
+    if (useCache && roomAvailabilityCache.value.has(roomId)) {
+      return roomAvailabilityCache.value.get(roomId);
+    }
+
+    try {
+      const available = await roomStatusService.checkRoomAvailability(roomId);
+
+      // 更新缓存
+      roomAvailabilityCache.value.set(roomId, available);
+
+      // 5分钟后清除缓存
+      setTimeout(() => {
+        roomAvailabilityCache.value.delete(roomId);
+      }, 5 * 60 * 1000);
+
+      return available;
+    } catch (error) {
+      console.error('检查房间可用性失败:', error);
+      return false;
+    }
+  };
+
+  // 批量检查房间可用性
+  const checkRoomsAvailability = async (roomIds: number[]) => {
+    try {
+      const availability = await roomStatusService.checkRoomsAvailability(roomIds);
+
+      // 更新缓存
+      Object.entries(availability).forEach(([roomId, isAvailable]) => {
+        roomAvailabilityCache.value.set(Number(roomId), isAvailable);
+
+        // 5分钟后清除缓存
+        setTimeout(() => {
+          roomAvailabilityCache.value.delete(Number(roomId));
+        }, 5 * 60 * 1000);
+      });
+
+      return availability;
+    } catch (error) {
+      console.error('批量检查房间可用性失败:', error);
+      ElMessage.error('检查房间可用性失败');
+      return {};
+    }
+  };
+
+  // 订阅房间状态变更
+  const subscribeToRoomStatusChanges = (
+    roomId: number,
+    callback: (roomId: number, oldStatus: string, newStatus: string) => void
+  ) => {
+    return roomStatusService.subscribeToStatusChanges(roomId, callback);
+  };
+
+  // 处理房间状态变更通知（由WebSocket调用）
+  const handleRoomStatusChanged = (roomId: number, oldStatus: string, newStatus: string) => {
+    // 更新本地房间数据
+    const roomIndex = rooms.value.findIndex(room => room.id === roomId);
+    if (roomIndex !== -1) {
+      rooms.value[roomIndex].status = newStatus;
+    }
+
+    // 更新当前房间
+    if (currentRoom.value?.id === roomId) {
+      currentRoom.value.status = newStatus;
+    }
+
+    // 更新可用性缓存
+    roomAvailabilityCache.value.set(roomId, newStatus === 'AVAILABLE');
+
+    // 通知订阅者
+    roomStatusService.onRoomStatusChanged(roomId, oldStatus, newStatus);
+  };
+
+  // 获取状态显示文本
+  const getStatusDisplayText = (status: string) => {
+    return roomStatusService.getStatusDisplayText(status);
+  };
+
+  // 获取状态颜色
+  const getStatusColor = (status: string) => {
+    return roomStatusService.getStatusColor(status);
+  };
+
+  // 验证状态流转是否合法
+  const isValidStatusTransition = (currentStatus: string, newStatus: string) => {
+    return roomStatusService.isValidStatusTransition(currentStatus, newStatus);
+  };
+
+  // 清除可用性缓存
+  const clearAvailabilityCache = (roomId?: number) => {
+    if (roomId) {
+      roomAvailabilityCache.value.delete(roomId);
+    } else {
+      roomAvailabilityCache.value.clear();
+    }
+  };
+
   // 初始化时加载搜索历史
   loadSearchHistory();
 
@@ -438,6 +613,8 @@ export const useRoomStore = defineStore('room', () => {
     searchParams,
     searchResults,
     searchHistory,
+    statusLogs,
+    statusLoading,
 
     // 计算属性
     hasNextPage,
@@ -461,6 +638,18 @@ export const useRoomStore = defineStore('room', () => {
     loadSearchHistory,
     clearSearchHistory,
     // 缓存相关方法
-    clearSearchCache: cleanExpiredCache
+    clearSearchCache: cleanExpiredCache,
+    // 状态管理相关方法
+    updateRoomStatus,
+    fetchRoomStatusLogs,
+    fetchRecentStatusLogs,
+    checkRoomAvailability,
+    checkRoomsAvailability,
+    subscribeToRoomStatusChanges,
+    handleRoomStatusChanged,
+    getStatusDisplayText,
+    getStatusColor,
+    isValidStatusTransition,
+    clearAvailabilityCache
   };
 });

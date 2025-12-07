@@ -43,6 +43,15 @@ public class Room {
     @TableField("images")
     private String images;
 
+    @TableField("version")
+    private Integer version = 1;
+
+    @TableField("last_status_changed_at")
+    private LocalDateTime lastStatusChangedAt;
+
+    @TableField("last_status_changed_by")
+    private Long lastStatusChangedBy;
+
     /**
      * 获取房间图片列表
      * @return 图片URL列表

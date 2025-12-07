@@ -80,5 +80,44 @@ export const roomApi = {
 
   // 获取房间可用性日历数据
   getRoomAvailability: (roomId: number, params: { startDate: string; endDate: string }) =>
-    request.get<ApiResponse<any[]>>(`/api/rooms/${roomId}/availability`, { params })
+    request.get<ApiResponse<any[]>>(`/api/rooms/${roomId}/availability`, { params }),
+
+  // 更新房间状态
+  updateRoomStatus: (roomId: number, data: {
+    status: string;
+    reason: string;
+    orderId?: number;
+    expectedVersion?: number;
+  }) => {
+    return request.put<ApiResponse<boolean>>(`/api/v1/rooms/${roomId}/status`, data);
+  },
+
+  // 获取房间状态变更日志
+  getRoomStatusLogs: (roomId: number, params: {
+    page?: number;
+    size?: number;
+    startDate?: string;
+    endDate?: string;
+  } = {}) => {
+    return request.get<ApiResponse<any>>(`/api/v1/rooms/${roomId}/status/logs`, { params });
+  },
+
+  // 获取最近状态变更记录
+  getRecentStatusLogs: (roomId: number, limit: number = 10) => {
+    return request.get<ApiResponse<any[]>>(`/api/v1/rooms/${roomId}/status/recent`, {
+      params: { limit }
+    });
+  },
+
+  // 检查房间可用性
+  checkRoomAvailability: (roomId: number) => {
+    return request.get<ApiResponse<boolean>>(`/api/v1/rooms/${roomId}/available`);
+  },
+
+  // 批量检查房间可用性
+  checkRoomsAvailability: (roomIds: number[]) => {
+    return request.post<ApiResponse<Record<number, boolean>>>(`/api/v1/rooms/availability/check`, {
+      roomIds
+    });
+  }
 };

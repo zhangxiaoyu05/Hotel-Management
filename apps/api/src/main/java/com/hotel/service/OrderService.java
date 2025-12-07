@@ -39,6 +39,7 @@ public class OrderService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final BookingPricingService bookingPricingService;
+    private final RoomStatusService roomStatusService;
     private final ApplicationEventPublisher eventPublisher;
 
     private static final BigDecimal SERVICE_FEE_RATE = new BigDecimal("0.10");
@@ -103,6 +104,25 @@ public class OrderService {
         order.setSpecialRequests(request.getSpecialRequests());
 
         orderRepository.insert(order);
+
+        // 更新房间状态为已预订
+        Room currentRoom = roomRepository.selectById(request.getRoomId());
+        if (currentRoom != null) {
+            try {
+                roomStatusService.updateRoomStatus(
+                        request.getRoomId(),
+                        "OCCUPIED",
+                        "订单预订成功，房间已预订",
+                        currentUserId,
+                        order.getId(),
+                        currentRoom.getVersion()
+                );
+            } catch (Exception e) {
+                // 状态更新失败不影响订单创建，但记录错误
+                System.err.println("Failed to update room status after booking: " + e.getMessage());
+                // 这里可以添加日志记录
+            }
+        }
 
         Hotel hotel = hotelRepository.selectById(room.getHotelId());
         User user = userRepository.selectById(currentUserId);
@@ -412,6 +432,25 @@ public class OrderService {
         int result = orderRepository.updateById(order);
         if (result <= 0) {
             throw new RuntimeException("订单取消失败");
+        }
+
+        // 恢复房间状态为可用
+        try {
+            Room currentRoom = roomRepository.selectById(order.getRoomId());
+            if (currentRoom != null) {
+                roomStatusService.updateRoomStatus(
+                        order.getRoomId(),
+                        "AVAILABLE",
+                        "订单取消，房间恢复可用状态",
+                        currentUserId,
+                        order.getId(),
+                        currentRoom.getVersion()
+                );
+            }
+        } catch (Exception e) {
+            // 状态更新失败不影响订单取消，但记录错误
+            System.err.println("Failed to restore room status after cancellation: " + e.getMessage());
+            // 这里可以添加日志记录
         }
 
         // 发送取消通知
