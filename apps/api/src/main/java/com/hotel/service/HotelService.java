@@ -3,9 +3,12 @@ package com.hotel.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hotel.dto.hotel.*;
+import com.hotel.dto.facility.FacilityCategoryResponse;
+import com.hotel.dto.facility.FacilityResponse;
 import com.hotel.entity.Hotel;
 import com.hotel.enums.HotelStatus;
 import com.hotel.repository.HotelRepository;
+import com.hotel.service.FacilityService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,6 +27,7 @@ public class HotelService {
 
     private final HotelRepository hotelRepository;
     private final ObjectMapper objectMapper;
+    private final FacilityService facilityService;
 
     @Transactional
     public HotelResponse createHotel(CreateHotelRequest request, Long createdBy) {
@@ -144,6 +148,30 @@ public class HotelService {
         hotelRepository.updateById(hotel);
 
         return convertToResponse(hotel);
+    }
+
+    /**
+     * 获取酒店设施分类
+     */
+    @Transactional(readOnly = true)
+    public List<FacilityCategoryResponse> getHotelFacilityCategories(Long hotelId) {
+        return facilityService.getActiveCategoriesByHotel(hotelId);
+    }
+
+    /**
+     * 获取酒店所有设施
+     */
+    @Transactional(readOnly = true)
+    public List<FacilityResponse> getHotelFacilities(Long hotelId) {
+        return facilityService.getFacilitiesByHotel(hotelId);
+    }
+
+    /**
+     * 获取酒店特色设施
+     */
+    @Transactional(readOnly = true)
+    public List<FacilityResponse> getHotelFeaturedFacilities(Long hotelId) {
+        return facilityService.getFeaturedFacilities(hotelId);
     }
 
     private HotelResponse convertToResponse(Hotel hotel) {

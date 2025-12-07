@@ -3,6 +3,8 @@ package com.hotel.controller;
 import com.hotel.controller.BaseController;
 import com.hotel.dto.ApiResponse;
 import com.hotel.dto.hotel.*;
+import com.hotel.dto.facility.FacilityCategoryResponse;
+import com.hotel.dto.facility.FacilityResponse;
 import com.hotel.service.HotelService;
 import com.hotel.util.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.validation.Valid;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.Max;
+import java.util.List;
 
 @Tag(name = "酒店管理", description = "酒店管理相关接口")
 @RestController
@@ -87,5 +90,31 @@ public class HotelController extends BaseController {
             @Valid @RequestBody UpdateHotelStatusRequest request) {
         HotelResponse response = hotelService.updateHotelStatus(id, request);
         return success(response, "酒店状态更新成功");
+    }
+
+    // ========== 酒店设施相关接口 ==========
+
+    @Operation(summary = "获取酒店设施分类", description = "获取酒店的设施分类列表")
+    @GetMapping("/{id}/facility-categories")
+    public ResponseEntity<ApiResponse<List<FacilityCategoryResponse>>> getHotelFacilityCategories(
+            @Parameter(description = "酒店ID") @PathVariable @Min(1) Long id) {
+        List<FacilityCategoryResponse> response = hotelService.getHotelFacilityCategories(id);
+        return success(response);
+    }
+
+    @Operation(summary = "获取酒店设施", description = "获取酒店的所有设施")
+    @GetMapping("/{id}/facilities")
+    public ResponseEntity<ApiResponse<List<FacilityResponse>>> getHotelFacilities(
+            @Parameter(description = "酒店ID") @PathVariable @Min(1) Long id) {
+        List<FacilityResponse> response = hotelService.getHotelFacilities(id);
+        return success(response);
+    }
+
+    @Operation(summary = "获取酒店特色设施", description = "获取酒店的特色设施")
+    @GetMapping("/{id}/featured-facilities")
+    public ResponseEntity<ApiResponse<List<FacilityResponse>>> getHotelFeaturedFacilities(
+            @Parameter(description = "酒店ID") @PathVariable @Min(1) Long id) {
+        List<FacilityResponse> response = hotelService.getHotelFeaturedFacilities(id);
+        return success(response);
     }
 }

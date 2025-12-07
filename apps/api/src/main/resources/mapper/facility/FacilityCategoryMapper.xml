@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hotel.repository.facility.FacilityCategoryRepository">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.hotel.entity.facility.FacilityCategory">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="hotel_id" property="hotelId" jdbcType="BIGINT"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="icon" property="icon" jdbcType="VARCHAR"/>
+        <result column="display_order" property="displayOrder" jdbcType="INTEGER"/>
+        <result column="is_active" property="isActive" jdbcType="BOOLEAN"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+        <result column="deleted" property="deleted" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <!-- 根据酒店ID查询设施分类列表 -->
+    <select id="selectByHotelId" resultMap="BaseResultMap">
+        SELECT *
+        FROM facility_categories
+        WHERE hotel_id = #{hotelId}
+        AND deleted = 0
+        ORDER BY display_order ASC, created_at ASC
+    </select>
+
+    <!-- 根据酒店ID查询激活的设施分类列表 -->
+    <select id="selectActiveByHotelId" resultMap="BaseResultMap">
+        SELECT *
+        FROM facility_categories
+        WHERE hotel_id = #{hotelId}
+        AND is_active = 1
+        AND deleted = 0
+        ORDER BY display_order ASC, created_at ASC
+    </select>
+
+    <!-- 检查分类名称是否已存在 -->
+    <select id="existsByName" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM facility_categories
+        WHERE hotel_id = #{hotelId}
+        AND name = #{name}
+        AND deleted = 0
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+
+</mapper>
