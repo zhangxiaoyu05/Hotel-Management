@@ -66,5 +66,19 @@ export const roomApi = {
   // 获取可用房间
   getAvailableRooms: () => {
     return request.get<ApiResponse<Room[]>>('/api/rooms/available');
-  }
+  },
+
+  // 搜索可用房间
+  searchAvailableRooms: (data: any) => {
+    return request.post<ApiResponse<any>>('/api/rooms/search-available', data);
+  },
+
+  // 获取房间类型列表
+  getRoomTypes: () => {
+    return request.get<ApiResponse<any[]>>('/api/room-types');
+  },
+
+  // 获取房间可用性日历数据
+  getRoomAvailability: (roomId: number, params: { startDate: string; endDate: string }) =>
+    request.get<ApiResponse<any[]>>(`/api/rooms/${roomId}/availability`, { params })
 };

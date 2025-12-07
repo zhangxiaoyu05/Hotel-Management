@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -180,6 +181,56 @@ public class RoomControllerTest extends BaseControllerTest {
                 .andExpect(jsonPath("$.success").value(true));
     }
 
+    @Test
+    void searchAvailableRooms_Success() throws Exception {
+        // Given
+        RoomSearchRequestDto request = new RoomSearchRequestDto();
+        request.setCheckInDate(LocalDate.now().plusDays(1));
+        request.setCheckOutDate(LocalDate.now().plusDays(2));
+        request.setGuestCount(2);
+        request.setHotelId(1L);
+        request.setPage(0);
+        request.setSize(20);
+
+        RoomSearchResultDto result = new RoomSearchResultDto(
+            Arrays.asList(createMockRoomSearchResponse(1L), createMockRoomSearchResponse(2L)),
+            2L,
+            0,
+            20
+        );
+
+        when(roomService.searchAvailableRooms(any(RoomSearchRequestDto.class)))
+                .thenReturn(result);
+
+        // When & Then
+        mockMvc.perform(post("/api/rooms/search-available")
+                        .with(authenticatedUser())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.rooms").isArray())
+                .andExpect(jsonPath("$.data.total").value(2))
+                .andExpect(jsonPath("$.data.page").value(0))
+                .andExpect(jsonPath("$.data.totalPages").value(1));
+    }
+
+    @Test
+    void searchAvailableRooms_ValidationError() throws Exception {
+        // Given - Invalid request with check-out date before check-in date
+        RoomSearchRequestDto request = new RoomSearchRequestDto();
+        request.setCheckInDate(LocalDate.now().plusDays(2));
+        request.setCheckOutDate(LocalDate.now().plusDays(1)); // Invalid
+        request.setGuestCount(2);
+
+        // When & Then
+        mockMvc.perform(post("/api/rooms/search-available")
+                        .with(authenticatedUser())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
     private RoomResponse createMockRoom(Long id, String roomNumber) {
         RoomResponse room = new RoomResponse();
         room.setId(id);
@@ -194,6 +245,32 @@ public class RoomControllerTest extends BaseControllerTest {
         room.setCreatedAt(LocalDateTime.now());
         room.setUpdatedAt(LocalDateTime.now());
         room.setRoomTypeName("标准间");
+        return room;
+    }
+
+    private RoomSearchResponseDto createMockRoomSearchResponse(Long id) {
+        RoomSearchResponseDto room = new RoomSearchResponseDto();
+        room.setId(id);
+        room.setRoomNumber("10" + id);
+        room.setFloor(1);
+        room.setArea(25);
+        room.setStatus("AVAILABLE");
+        room.setPrice(new BigDecimal("299.00"));
+        room.setImages(Arrays.asList("/images/room1.jpg"));
+        room.setCreatedAt(LocalDateTime.now());
+        room.setUpdatedAt(LocalDateTime.now());
+        room.setRoomTypeId(1L);
+        room.setRoomTypeName("标准间");
+        room.setRoomTypeCapacity(2);
+        room.setHotelId(1L);
+        room.setHotelName("示例酒店");
+        room.setHotelAddress("示例地址");
+        room.setHotelPhone("1234567890");
+        room.setTotalPrice(new BigDecimal("299.00"));
+        room.setAveragePricePerNight(new BigDecimal("299.00"));
+        room.setIsAvailable(true);
+        room.setAvailableRooms(1);
+        room.setAvailabilityStatus("可用");
         return room;
     }
 }

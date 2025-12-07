@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hotel.dto.room.RoomSearchRequest;
+import com.hotel.dto.room.RoomSearchRequestDto;
 import com.hotel.entity.Room;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -49,7 +50,32 @@ public interface RoomRepository extends BaseMapper<Room> {
         "<if test='request.maxPrice != null'>",
         "  AND r.price <= #{request.maxPrice}",
         "</if>",
-        "ORDER BY ${request.sortBy} ${request.sortDir}",
+        "ORDER BY",
+        "  <choose>",
+        "    <when test='request.sortBy == \"roomNumber\"'>",
+        "      r.room_number",
+        "    </when>",
+        "    <when test='request.sortBy == \"price\"'>",
+        "      r.price",
+        "    </when>",
+        "    <when test='request.sortBy == \"floor\"'>",
+        "      r.floor",
+        "    </when>",
+        "    <when test='request.sortBy == \"createdAt\"'>",
+        "      r.created_at",
+        "    </when>",
+        "    <otherwise>",
+        "      r.room_number",
+        "    </otherwise>",
+        "  </choose>",
+        "  <choose>",
+        "    <when test='request.sortDir == \"ASC\"'>",
+        "      ASC",
+        "    </when>",
+        "    <otherwise>",
+        "      DESC",
+        "    </otherwise>",
+        "  </choose>",
         "</script>"
     })
     IPage<Room> searchRooms(Page<Room> page, @Param("request") RoomSearchRequest request);
@@ -117,4 +143,121 @@ public interface RoomRepository extends BaseMapper<Room> {
         @Param("hotelId") Long hotelId,
         @Param("excludeId") Long excludeId
     );
+
+    /**
+     * 搜索可用房间
+     */
+    @Select({
+        "<script>",
+        "SELECT DISTINCT r.* FROM rooms r",
+        "LEFT JOIN room_types rt ON r.room_type_id = rt.id",
+        "LEFT JOIN hotels h ON r.hotel_id = h.id",
+        "WHERE r.deleted = 0",
+        "AND r.status = 'AVAILABLE'",
+        "AND rt.capacity >= #{request.guestCount}",
+        "<if test='request.hotelId != null'>",
+        "  AND r.hotel_id = #{request.hotelId}",
+        "</if>",
+        "<if test='request.roomTypeId != null'>",
+        "  AND r.room_type_id = #{request.roomTypeId}",
+        "</if>",
+        "<if test='request.priceMin != null'>",
+        "  AND r.price >= #{request.priceMin}",
+        "</if>",
+        "<if test='request.priceMax != null'>",
+        "  AND r.price <= #{request.priceMax}",
+        "</if>",
+        "<if test='request.facilities != null and request.facilities.size() > 0'>",
+        "  AND (" ,
+        "    <foreach collection='request.facilities' item='facility' separator=' OR '>",
+        "      rt.facilities LIKE CONCAT('%', #{facility}, '%')",
+        "    </foreach>",
+        "  )",
+        "</if>",
+        "AND r.id NOT IN (",
+        "  SELECT DISTINCT o.room_id FROM orders o",
+        "  WHERE o.deleted = 0",
+        "  AND o.status IN ('CONFIRMED', 'COMPLETED')",
+        "  AND (",
+        "    (o.check_in_date <= #{request.checkOutDate} AND o.check_out_date > #{request.checkInDate})",
+        "  )",
+        ")",
+        "ORDER BY",
+        "  <choose>",
+        "    <when test='request.sortBy == \"PRICE\"'>",
+        "      <choose>",
+        "        <when test='request.sortOrder == \"ASC\"'>",
+        "          r.price ASC",
+        "        </when>",
+        "        <otherwise>",
+        "          r.price DESC",
+        "        </otherwise>",
+        "      </choose>",
+        "    </when>",
+        "    <when test='request.sortBy == \"RATING\"'>",
+        "      <choose>",
+        "        <when test='request.sortOrder == \"ASC\"'>",
+        "          h.rating ASC",
+        "        </when>",
+        "        <otherwise>",
+        "          h.rating DESC",
+        "        </otherwise>",
+        "      </choose>",
+        "    </when>",
+        "    <otherwise>",
+        "      <choose>",
+        "        <when test='request.sortOrder == \"ASC\"'>",
+        "          r.room_number ASC",
+        "        </when>",
+        "        <otherwise>",
+        "          r.room_number DESC",
+        "        </otherwise>",
+        "      </choose>",
+        "    </otherwise>",
+        "  </choose>",
+        "</script>"
+    })
+    IPage<Room> searchAvailableRooms(Page<Room> page, @Param("request") RoomSearchRequestDto request);
+
+    /**
+     * 获取可用房间总数
+     */
+    @Select({
+        "<script>",
+        "SELECT COUNT(DISTINCT r.id) FROM rooms r",
+        "LEFT JOIN room_types rt ON r.room_type_id = rt.id",
+        "LEFT JOIN hotels h ON r.hotel_id = h.id",
+        "WHERE r.deleted = 0",
+        "AND r.status = 'AVAILABLE'",
+        "AND rt.capacity >= #{request.guestCount}",
+        "<if test='request.hotelId != null'>",
+        "  AND r.hotel_id = #{request.hotelId}",
+        "</if>",
+        "<if test='request.roomTypeId != null'>",
+        "  AND r.room_type_id = #{request.roomTypeId}",
+        "</if>",
+        "<if test='request.priceMin != null'>",
+        "  AND r.price >= #{request.priceMin}",
+        "</if>",
+        "<if test='request.priceMax != null'>",
+        "  AND r.price <= #{request.priceMax}",
+        "</if>",
+        "<if test='request.facilities != null and request.facilities.size() > 0'>",
+        "  AND (" ,
+        "    <foreach collection='request.facilities' item='facility' separator=' OR '>",
+        "      rt.facilities LIKE CONCAT('%', #{facility}, '%')",
+        "    </foreach>",
+        "  )",
+        "</if>",
+        "AND r.id NOT IN (",
+        "  SELECT DISTINCT o.room_id FROM orders o",
+        "  WHERE o.deleted = 0",
+        "  AND o.status IN ('CONFIRMED', 'COMPLETED')",
+        "  AND (",
+        "    (o.check_in_date <= #{request.checkOutDate} AND o.check_out_date > #{request.checkInDate})",
+        "  )",
+        ")",
+        "</script>"
+    })
+    Long countAvailableRooms(@Param("request") RoomSearchRequestDto request);
 }

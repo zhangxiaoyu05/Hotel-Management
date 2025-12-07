@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 价格策略业务逻辑层
@@ -275,5 +277,57 @@ public class PricingService {
     @Transactional(readOnly = true)
     public SpecialPrice getSpecialPriceForRoom(Long roomId, LocalDate date) {
         return specialPriceRepository.findByRoomIdAndDate(roomId, date);
+    }
+
+    /**
+     * 计算房间在日期范围内的总价格
+     *
+     * @param roomId 房间ID
+     * @param checkInDate 入住日期
+     * @param checkOutDate 退房日期
+     * @return 总价格
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal calculateTotalPrice(Long roomId, LocalDate checkInDate, LocalDate checkOutDate) {
+        log.debug("计算房间总价: roomId={}, checkInDate={}, checkOutDate={}",
+                roomId, checkInDate, checkOutDate);
+
+        BigDecimal totalPrice = BigDecimal.ZERO;
+        LocalDate currentDate = checkInDate;
+
+        while (currentDate.isBefore(checkOutDate)) {
+            BigDecimal dayPrice = calculateRoomPrice(roomId, currentDate);
+            totalPrice = totalPrice.add(dayPrice);
+            currentDate = currentDate.plusDays(1);
+        }
+
+        log.debug("房间总价计算完成: roomId={}, totalPrice={}", roomId, totalPrice);
+        return totalPrice;
+    }
+
+    /**
+     * 计算房间在日期范围内的每日价格
+     *
+     * @param roomId 房间ID
+     * @param checkInDate 入住日期
+     * @param checkOutDate 退房日期
+     * @return 日期到价格的映射
+     */
+    @Transactional(readOnly = true)
+    public Map<LocalDate, BigDecimal> calculateRoomPricesForDateRange(
+            Long roomId, LocalDate checkInDate, LocalDate checkOutDate) {
+        log.debug("计算房间每日价格: roomId={}, checkInDate={}, checkOutDate={}",
+                roomId, checkInDate, checkOutDate);
+
+        Map<LocalDate, BigDecimal> priceMap = new java.util.HashMap<>();
+        LocalDate currentDate = checkInDate;
+
+        while (currentDate.isBefore(checkOutDate)) {
+            BigDecimal dayPrice = calculateRoomPrice(roomId, currentDate);
+            priceMap.put(currentDate, dayPrice);
+            currentDate = currentDate.plusDays(1);
+        }
+
+        return priceMap;
     }
 }

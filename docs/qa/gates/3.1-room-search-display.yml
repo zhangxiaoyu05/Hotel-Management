@@ -1,0 +1,68 @@
+schema: 1
+story: "3.1"
+story_title: "房间搜索与展示"
+gate: "CONCERNS"
+status_reason: "安全漏洞已修复，但测试覆盖严重不足（仅10%），且存在多个未完成任务项"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-07T00:00:00Z"
+
+waiver:
+  active: false
+
+top_issues:
+  - id: "TEST-001"
+    severity: high
+    finding: "测试覆盖度仅10%，严重低于标准要求"
+    suggested_action: "补充RoomService、RoomRepository和前端组件的单元测试"
+  - id: "SEC-002"
+    severity: medium
+    finding: "硬编码hotelId导致多租户数据泄露风险"
+    suggested_action: "实现完整的多租户架构，从JWT或用户信息提取实际hotelId"
+  - id: "PERF-001"
+    severity: medium
+    finding: "缺少数据库索引，搜索查询性能可能不佳"
+    suggested_action: "为搜索字段(hotel_id, status, room_type_id, price)添加复合索引"
+  - id: "TASK-001"
+    severity: medium
+    finding: "存在未完成的任务项（搜索缓存、日历组件）"
+    suggested_action: "完成所有标记为未完成的任务项"
+
+quality_score: 60
+expires: "2025-12-21T00:00:00Z"
+
+evidence:
+  tests_reviewed: 1
+  risks_identified: 8
+  trace:
+    ac_covered: [1, 2, 3, 4]  # AC 1-4 有后端测试覆盖
+    ac_gaps: [5]  # AC 5 搜索历史功能完全缺少测试
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: "已修复SQL注入漏洞，但仍存在多租户数据泄露风险"
+  performance:
+    status: CONCERNS
+    notes: "复杂JOIN查询缺少索引优化，大量数据时可能性能不佳"
+  reliability:
+    status: PASS
+    notes: "事务管理和错误处理完善"
+  maintainability:
+    status: CONCERNS
+    notes: "组件职责需进一步拆分，RoomService过于庞大"
+
+recommendations:
+  immediate:
+    - action: "创建RoomService单元测试，覆盖searchAvailableRooms方法"
+      refs: ["apps/api/src/main/java/com/hotel/service/RoomService.java"]
+    - action: "创建前端组件单元测试"
+      refs: ["apps/web/src/components/business/RoomCard.vue", "apps/web/src/pages/rooms/RoomSearch.vue"]
+    - action: "实现搜索结果缓存机制"
+      refs: ["apps/web/src/stores/roomStore.ts:326"]
+  future:
+    - action: "实现多租户架构"
+      refs: ["apps/api/src/main/java/com/hotel/service/RoomService.java:508-511"]
+    - action: "添加数据库索引优化"
+      refs: ["apps/api/src/main/java/com/hotel/repository/RoomRepository.java:125-174"]
+    - action: "拆分RoomService为多个专门的服务类"
+      refs: ["apps/api/src/main/java/com/hotel/service/RoomService.java"]

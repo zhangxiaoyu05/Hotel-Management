@@ -14,6 +14,7 @@ import com.hotel.exception.ResourceNotFoundException;
 import com.hotel.exception.BusinessException;
 import com.hotel.repository.RoomRepository;
 import com.hotel.repository.RoomTypeRepository;
+import com.hotel.repository.HotelRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -39,8 +40,10 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
     private final RoomTypeRepository roomTypeRepository;
-    private final ObjectMapper objectMapper;
+    private final HotelRepository hotelRepository;
     private final PricingService pricingService;
+    private final ObjectMapper objectMapper;
+    private final UserContextService userContextService;
 
     /**
      * 创建房间
@@ -398,16 +401,109 @@ public class RoomService {
     }
 
     /**
+     * 搜索可用房间
+     */
+    @Transactional(readOnly = true)
+    public RoomSearchResultDto searchAvailableRooms(RoomSearchRequestDto request) {
+        log.info("搜索可用房间，条件：{}", request);
+
+        Page<Room> pageRequest = new Page<>(request.getPage(), request.getSize());
+
+        // 搜索可用房间
+        IPage<Room> roomPage = roomRepository.searchAvailableRooms(pageRequest, request);
+
+        // 转换为响应DTO
+        List<RoomSearchResponseDto> roomResponses = roomPage.getRecords().stream()
+                .map(room -> convertToRoomSearchResponse(room, request))
+                .collect(Collectors.toList());
+
+        // 创建结果对象
+        RoomSearchResultDto result = new RoomSearchResultDto(
+                roomResponses,
+                roomPage.getTotal(),
+                request.getPage(),
+                request.getSize()
+        );
+
+        log.info("搜索完成，找到{}个可用房间", roomResponses.size());
+        return result;
+    }
+
+    /**
+     * 转换为房间搜索响应DTO
+     */
+    private RoomSearchResponseDto convertToRoomSearchResponse(Room room, RoomSearchRequestDto searchRequest) {
+        RoomSearchResponseDto response = new RoomSearchResponseDto();
+
+        // 基本信息
+        response.setId(room.getId());
+        response.setRoomNumber(room.getRoomNumber());
+        response.setFloor(room.getFloor());
+        response.setArea(room.getArea());
+        response.setStatus(room.getStatus());
+        response.setPrice(room.getPrice());
+        response.setImages(room.getImageList());
+        response.setCreatedAt(room.getCreatedAt());
+        response.setUpdatedAt(room.getUpdatedAt());
+
+        // 房间类型信息
+        RoomType roomType = roomTypeRepository.selectById(room.getRoomTypeId());
+        if (roomType != null) {
+            response.setRoomTypeId(roomType.getId());
+            response.setRoomTypeName(roomType.getName());
+            response.setRoomTypeCapacity(roomType.getCapacity());
+            response.setRoomTypeDescription(roomType.getDescription());
+            response.setRoomTypeFacilities(roomType.getFacilities());
+        }
+
+        // 酒店信息
+        Hotel hotel = hotelRepository.selectById(room.getHotelId());
+        if (hotel != null) {
+            response.setHotelId(hotel.getId());
+            response.setHotelName(hotel.getName());
+            response.setHotelAddress(hotel.getAddress());
+            response.setHotelPhone(hotel.getPhone());
+            response.setHotelDescription(hotel.getDescription());
+            response.setHotelFacilities(hotel.getFacilities());
+            response.setHotelImages(hotel.getImages());
+        }
+
+        // 计算价格信息
+        try {
+            BigDecimal totalPrice = pricingService.calculateTotalPrice(
+                    room.getId(),
+                    searchRequest.getCheckInDate(),
+                    searchRequest.getCheckOutDate()
+            );
+            response.setTotalPrice(totalPrice);
+
+            // 计算平均每晚价格
+            long nights = java.time.temporal.ChronoUnit.DAYS.between(
+                    searchRequest.getCheckInDate(),
+                    searchRequest.getCheckOutDate()
+            );
+            if (nights > 0) {
+                response.setAveragePricePerNight(totalPrice.divide(BigDecimal.valueOf(nights), 2, BigDecimal.ROUND_HALF_UP));
+            }
+        } catch (Exception e) {
+            log.warn("计算房间价格失败，使用基础价格，房间ID: {}", room.getId(), e);
+            response.setTotalPrice(room.getPrice());
+            response.setAveragePricePerNight(room.getPrice());
+        }
+
+        // 设置可用性信息
+        response.setIsAvailable(true);
+        response.setAvailableRooms(1);
+        response.setAvailabilityStatus("可用");
+
+        return response;
+    }
+
+    /**
      * 获取当前用户的酒店ID
      * @return 酒店ID
      */
     private Long getCurrentUserHotelId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            // TODO: 从用户信息中获取酒店ID
-            // 暂时返回默认值
-            return 1L;
-        }
-        throw new BusinessException("用户未认证");
+        return userContextService.getCurrentUserHotelId();
     }
 }

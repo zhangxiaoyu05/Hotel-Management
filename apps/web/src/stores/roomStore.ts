@@ -1,18 +1,30 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { roomApi } from '@/api/room';
-import type { Room, RoomSearchRequest, RoomListResponse } from '@/types/room';
+import type { Room, RoomSearchRequest, RoomListResponse, RoomType } from '@/types/room';
 import { ElMessage } from 'element-plus';
+
+// 房间搜索历史类型
+interface SearchHistory {
+  checkInDate: string;
+  checkOutDate: string;
+  guestCount: number;
+  hotelId?: number;
+  roomTypeId?: number;
+  timestamp: number;
+}
 
 export const useRoomStore = defineStore('room', () => {
   // 状态
   const rooms = ref<Room[]>([]);
   const currentRoom = ref<Room | null>(null);
+  const roomTypes = ref<RoomType[]>([]);
   const total = ref(0);
   const totalPages = ref(0);
   const currentPage = ref(0);
   const pageSize = ref(20);
   const loading = ref(false);
+  const searchResults = ref<any>(null);
 
   // 搜索条件
   const searchParams = ref<RoomSearchRequest>({
@@ -21,6 +33,10 @@ export const useRoomStore = defineStore('room', () => {
     sortBy: 'roomNumber',
     sortDir: 'ASC'
   });
+
+  // 搜索历史
+  const searchHistory = ref<SearchHistory[]>([]);
+  const maxSearchHistory = 10;
 
   // 计算属性
   const hasNextPage = computed(() => currentPage.value + 1 < totalPages.value);
@@ -226,16 +242,202 @@ export const useRoomStore = defineStore('room', () => {
     currentRoom.value = null;
   };
 
+  // 搜索结果缓存
+  const searchCache = ref<Map<string, { data: any; timestamp: number }>>(new Map());
+  const CACHE_EXPIRY_TIME = 5 * 60 * 1000; // 5分钟缓存
+  const MAX_CACHE_SIZE = 50; // 最大缓存条目数
+
+  // 生成缓存键
+  const generateCacheKey = (searchRequest: any): string => {
+    const keyParams = {
+      hotelId: searchRequest.hotelId,
+      roomTypeId: searchRequest.roomTypeId,
+      checkInDate: searchRequest.checkInDate,
+      checkOutDate: searchRequest.checkOutDate,
+      guestCount: searchRequest.guestCount,
+      priceMin: searchRequest.priceMin,
+      priceMax: searchRequest.priceMax,
+      facilities: searchRequest.facilities?.sort() || [],
+      sortBy: searchRequest.sortBy || 'PRICE',
+      sortOrder: searchRequest.sortOrder || 'ASC',
+      page: searchRequest.page || 0,
+      size: searchRequest.size || 20
+    };
+    return btoa(JSON.stringify(keyParams));
+  };
+
+  // 检查缓存是否有效
+  const isCacheValid = (cacheEntry: { data: any; timestamp: number }): boolean => {
+    if (!cacheEntry) return false;
+    return Date.now() - cacheEntry.timestamp < CACHE_EXPIRY_TIME;
+  };
+
+  // 从缓存获取搜索结果
+  const getCachedSearchResult = (searchRequest: any) => {
+    const cacheKey = generateCacheKey(searchRequest);
+    const cacheEntry = searchCache.value.get(cacheKey);
+
+    if (isCacheValid(cacheEntry)) {
+      console.log('从缓存返回搜索结果:', cacheKey.substring(0, 20) + '...');
+      return cacheEntry.data;
+    }
+
+    // 清理过期缓存
+    if (cacheEntry) {
+      searchCache.value.delete(cacheKey);
+    }
+
+    return null;
+  };
+
+  // 缓存搜索结果
+  const cacheSearchResult = (searchRequest: any, result: any) => {
+    const cacheKey = generateCacheKey(searchRequest);
+
+    // 如果缓存已满，删除最旧的条目
+    if (searchCache.value.size >= MAX_CACHE_SIZE) {
+      const oldestKey = searchCache.value.keys().next().value;
+      searchCache.value.delete(oldestKey);
+    }
+
+    searchCache.value.set(cacheKey, {
+      data: result,
+      timestamp: Date.now()
+    });
+
+    console.log('缓存搜索结果:', cacheKey.substring(0, 20) + '...');
+  };
+
+  // 清理过期缓存
+  const cleanExpiredCache = () => {
+    const now = Date.now();
+    for (const [key, entry] of searchCache.value.entries()) {
+      if (now - entry.timestamp >= CACHE_EXPIRY_TIME) {
+        searchCache.value.delete(key);
+      }
+    }
+  };
+
+  // 搜索可用房间（带缓存）
+  const searchAvailableRooms = async (searchRequest: any) => {
+    // 先检查缓存
+    const cachedResult = getCachedSearchResult(searchRequest);
+    if (cachedResult) {
+      searchResults.value = cachedResult;
+      return cachedResult;
+    }
+
+    loading.value = true;
+    try {
+      const response = await roomApi.searchAvailableRooms(searchRequest);
+
+      if (response.data.success) {
+        const result = response.data.data;
+        searchResults.value = result;
+
+        // 缓存结果
+        cacheSearchResult(searchRequest, result);
+
+        return result;
+      } else {
+        ElMessage.error(response.data.message || '搜索可用房间失败');
+        return null;
+      }
+    } catch (error) {
+      console.error('搜索可用房间失败:', error);
+      ElMessage.error('搜索可用房间失败');
+      return null;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  // 获取房间类型列表
+  const fetchRoomTypes = async () => {
+    try {
+      const response = await roomApi.getRoomTypes();
+
+      if (response.data.success) {
+        roomTypes.value = response.data.data;
+        return response.data.data;
+      } else {
+        ElMessage.error('获取房间类型失败');
+        return [];
+      }
+    } catch (error) {
+      console.error('获取房间类型失败:', error);
+      ElMessage.error('获取房间类型失败');
+      return [];
+    }
+  };
+
+  // 保存搜索历史到本地存储
+  const saveSearchHistory = (history: SearchHistory) => {
+    try {
+      // 检查是否已存在相同的搜索
+      const existingIndex = searchHistory.value.findIndex(
+        h => h.checkInDate === history.checkInDate &&
+             h.checkOutDate === history.checkOutDate &&
+             h.guestCount === history.guestCount &&
+             h.hotelId === history.hotelId &&
+             h.roomTypeId === history.roomTypeId
+      );
+
+      if (existingIndex !== -1) {
+        // 如果存在，移除旧的
+        searchHistory.value.splice(existingIndex, 1);
+      }
+
+      // 添加新的搜索历史到开头
+      searchHistory.value.unshift(history);
+
+      // 限制历史记录数量
+      if (searchHistory.value.length > maxSearchHistory) {
+        searchHistory.value = searchHistory.value.slice(0, maxSearchHistory);
+      }
+
+      // 保存到 localStorage
+      localStorage.setItem('room_search_history', JSON.stringify(searchHistory.value));
+    } catch (error) {
+      console.error('保存搜索历史失败:', error);
+    }
+  };
+
+  // 从本地存储加载搜索历史
+  const loadSearchHistory = () => {
+    try {
+      const saved = localStorage.getItem('room_search_history');
+      if (saved) {
+        searchHistory.value = JSON.parse(saved);
+      }
+    } catch (error) {
+      console.error('加载搜索历史失败:', error);
+      searchHistory.value = [];
+    }
+  };
+
+  // 清空搜索历史
+  const clearSearchHistory = () => {
+    searchHistory.value = [];
+    localStorage.removeItem('room_search_history');
+  };
+
+  // 初始化时加载搜索历史
+  loadSearchHistory();
+
   return {
     // 状态
     rooms,
     currentRoom,
+    roomTypes,
     total,
     totalPages,
     currentPage,
     pageSize,
     loading,
     searchParams,
+    searchResults,
+    searchHistory,
 
     // 计算属性
     hasNextPage,
@@ -252,6 +454,13 @@ export const useRoomStore = defineStore('room', () => {
     setPage,
     setPageSize,
     getRoomsByStatus,
-    clearCurrentRoom
+    clearCurrentRoom,
+    searchAvailableRooms,
+    fetchRoomTypes,
+    saveSearchHistory,
+    loadSearchHistory,
+    clearSearchHistory,
+    // 缓存相关方法
+    clearSearchCache: cleanExpiredCache
   };
 });

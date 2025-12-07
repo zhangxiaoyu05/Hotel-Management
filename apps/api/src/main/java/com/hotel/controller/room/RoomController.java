@@ -151,6 +151,17 @@ public class RoomController extends BaseController {
         return success(response.getContent());
     }
 
+    @Operation(summary = "搜索可用房间", description = "根据入住日期、退房日期、客人数量等条件搜索可用房间")
+    @PostMapping("/search-available")
+    @RateLimit(period = 60, limit = 50, type = RateLimit.LimitType.IP,
+              prefix = "room_search_available", message = "搜索可用房间请求过于频繁，请稍后再试")
+    public ResponseEntity<ApiResponse<RoomSearchResultDto>> searchAvailableRooms(
+            @Valid @RequestBody RoomSearchRequestDto searchRequest) {
+
+        RoomSearchResultDto response = roomService.searchAvailableRooms(searchRequest);
+        return success(response, "搜索可用房间成功");
+    }
+
     // ==================== 价格计算相关API ====================
 
     @Operation(summary = "获取房间在指定日期的价格", description = "根据价格策略计算房间在指定日期的价格")
