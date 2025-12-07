@@ -33,6 +33,14 @@ public class RoomType {
     @TableField("description")
     private String description;
 
+    @TableField("icon_url")
+    private String iconUrl;
+
+    @TableField("status")
+    private String status;
+
+    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updatedAt;
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
