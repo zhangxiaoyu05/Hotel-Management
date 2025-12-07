@@ -29,13 +29,33 @@ public class FileService {
 
     // 头像上传目录
     private static final String AVATAR_DIR = "avatars";
+    // 酒店图片上传目录
+    private static final String HOTEL_DIR = "hotels";
 
     /**
-     * 上传文件
+     * 上传文件（默认头像）
      */
     public UploadResponse uploadFile(MultipartFile file) throws IOException {
+        return uploadFile(file, AVATAR_DIR);
+    }
+
+    /**
+     * 上传文件到指定目录
+     */
+    public UploadResponse uploadFile(MultipartFile file, String type) throws IOException {
+        String directory;
+        switch (type.toLowerCase()) {
+            case "hotel":
+                directory = HOTEL_DIR;
+                break;
+            case "avatar":
+            default:
+                directory = AVATAR_DIR;
+                break;
+        }
+
         // 确保上传目录存在
-        Path uploadPath = Paths.get(uploadDir, AVATAR_DIR);
+        Path uploadPath = Paths.get(uploadDir, directory);
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
@@ -51,11 +71,12 @@ public class FileService {
 
         // 构建响应
         UploadResponse response = new UploadResponse();
-        response.setUrl(baseUrl + "/upload-url/" + newFilename);
+        response.setUrl(baseUrl + "/" + directory + "/" + newFilename);
         response.setFilename(newFilename);
         response.setOriginalFilename(originalFilename);
         response.setContentType(file.getContentType());
         response.setSize(file.getSize());
+        response.setType(type);
 
         log.info("文件保存成功: {}", filePath);
 

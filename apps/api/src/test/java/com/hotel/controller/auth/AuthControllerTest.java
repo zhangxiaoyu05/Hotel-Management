@@ -3,6 +3,7 @@ package com.hotel.controller.auth;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hotel.dto.AuthResponse;
 import com.hotel.dto.CreateUserRequest;
+import com.hotel.dto.LoginRequest;
 import com.hotel.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,7 @@ class AuthControllerTest {
     private ObjectMapper objectMapper;
 
     private CreateUserRequest validRequest;
+    private LoginRequest validLoginRequest;
 
     @BeforeEach
     void setUp() {
@@ -39,6 +41,10 @@ class AuthControllerTest {
         validRequest.setPhone("13800138000");
         validRequest.setPassword("Test123!@#");
         validRequest.setRole("USER");
+
+        validLoginRequest = new LoginRequest();
+        validLoginRequest.setIdentifier("testuser");
+        validLoginRequest.setPassword("Test123!@#");
     }
 
     @Test
@@ -296,5 +302,216 @@ class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("手机号不能为空"));
+    }
+
+    // ========== 登录功能测试 ==========
+
+    @Test
+    void testLogin_WithUsername_Success() throws Exception {
+        // Given
+        AuthResponse.Data responseData = new AuthResponse.Data();
+        AuthResponse.User user = new AuthResponse.User();
+        user.setId(1L);
+        user.setUsername("testuser");
+        user.setEmail("test@example.com");
+        user.setPhone("13800138000");
+        user.setRole("USER");
+        user.setStatus("ACTIVE");
+
+        responseData.setUser(user);
+        responseData.setToken("mock-jwt-token");
+        responseData.setExpiresIn(86400);
+
+        when(userService.login(any(LoginRequest.class))).thenReturn(responseData);
+
+        // When & Then
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validLoginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("登录成功"))
+                .andExpect(jsonPath("$.data.user.username").value("testuser"))
+                .andExpect(jsonPath("$.data.user.email").value("test@example.com"))
+                .andExpect(jsonPath("$.data.user.phone").value("13800138000"))
+                .andExpect(jsonPath("$.data.user.role").value("USER"))
+                .andExpect(jsonPath("$.data.user.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.data.token").value("mock-jwt-token"))
+                .andExpect(jsonPath("$.data.expiresIn").value(86400));
+    }
+
+    @Test
+    void testLogin_WithEmail_Success() throws Exception {
+        // Given
+        LoginRequest emailLoginRequest = new LoginRequest();
+        emailLoginRequest.setIdentifier("test@example.com");
+        emailLoginRequest.setPassword("Test123!@#");
+
+        AuthResponse.Data responseData = new AuthResponse.Data();
+        AuthResponse.User user = new AuthResponse.User();
+        user.setId(1L);
+        user.setUsername("testuser");
+        user.setEmail("test@example.com");
+        user.setPhone("13800138000");
+        user.setRole("USER");
+        user.setStatus("ACTIVE");
+
+        responseData.setUser(user);
+        responseData.setToken("mock-jwt-token");
+
+        when(userService.login(any(LoginRequest.class))).thenReturn(responseData);
+
+        // When & Then
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(emailLoginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("登录成功"));
+    }
+
+    @Test
+    void testLogin_WithPhone_Success() throws Exception {
+        // Given
+        LoginRequest phoneLoginRequest = new LoginRequest();
+        phoneLoginRequest.setIdentifier("13800138000");
+        phoneLoginRequest.setPassword("Test123!@#");
+
+        AuthResponse.Data responseData = new AuthResponse.Data();
+        AuthResponse.User user = new AuthResponse.User();
+        user.setId(1L);
+        user.setUsername("testuser");
+        user.setEmail("test@example.com");
+        user.setPhone("13800138000");
+        user.setRole("USER");
+        user.setStatus("ACTIVE");
+
+        responseData.setUser(user);
+        responseData.setToken("mock-jwt-token");
+
+        when(userService.login(any(LoginRequest.class))).thenReturn(responseData);
+
+        // When & Then
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(phoneLoginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("登录成功"));
+    }
+
+    @Test
+    void testLogin_InvalidCredentials() throws Exception {
+        // Given
+        LoginRequest invalidLoginRequest = new LoginRequest();
+        invalidLoginRequest.setIdentifier("testuser");
+        invalidLoginRequest.setPassword("wrongpassword");
+
+        when(userService.login(any(LoginRequest.class)))
+                .thenThrow(new IllegalArgumentException("用户名或密码错误"));
+
+        // When & Then
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidLoginRequest)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("用户名或密码错误"));
+    }
+
+    @Test
+    void testLogin_UserNotFound() throws Exception {
+        // Given
+        LoginRequest notFoundLoginRequest = new LoginRequest();
+        notFoundLoginRequest.setIdentifier("nonexistentuser");
+        notFoundLoginRequest.setPassword("Test123!@#");
+
+        when(userService.login(any(LoginRequest.class)))
+                .thenThrow(new IllegalArgumentException("用户不存在"));
+
+        // When & Then
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(notFoundLoginRequest)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("用户不存在"));
+    }
+
+    @Test
+    void testLogin_UserInactive() throws Exception {
+        // Given
+        LoginRequest inactiveLoginRequest = new LoginRequest();
+        inactiveLoginRequest.setIdentifier("inactiveuser");
+        inactiveLoginRequest.setPassword("Test123!@#");
+
+        when(userService.login(any(LoginRequest.class)))
+                .thenThrow(new IllegalArgumentException("账户已被禁用"));
+
+        // When & Then
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(inactiveLoginRequest)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("账户已被禁用"));
+    }
+
+    @Test
+    void testLogin_EmptyIdentifier() throws Exception {
+        // Given
+        LoginRequest emptyIdentifierRequest = new LoginRequest();
+        emptyIdentifierRequest.setIdentifier("");
+        emptyIdentifierRequest.setPassword("Test123!@#");
+
+        // When & Then
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(emptyIdentifierRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testLogin_EmptyPassword() throws Exception {
+        // Given
+        LoginRequest emptyPasswordRequest = new LoginRequest();
+        emptyPasswordRequest.setIdentifier("testuser");
+        emptyPasswordRequest.setPassword("");
+
+        // When & Then
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(emptyPasswordRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void testLogin_SystemError() throws Exception {
+        // Given
+        when(userService.login(any(LoginRequest.class)))
+                .thenThrow(new RuntimeException("系统错误"));
+
+        // When & Then
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validLoginRequest)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("登录失败，请稍后重试"));
+    }
+
+    @Test
+    void testLogin_IdentifierTooLong() throws Exception {
+        // Given
+        LoginRequest longIdentifierRequest = new LoginRequest();
+        String longIdentifier = "a".repeat(101);
+        longIdentifierRequest.setIdentifier(longIdentifier);
+        longIdentifierRequest.setPassword("Test123!@#");
+
+        // When & Then
+        mockMvc.perform(post("/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(longIdentifierRequest)))
+                .andExpect(status().isBadRequest());
     }
 }

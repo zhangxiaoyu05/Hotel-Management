@@ -1,0 +1,47 @@
+schema: 1
+story: "2.1"
+story_title: "酒店信息管理"
+gate: PASS
+status_reason: "功能实现完整，测试覆盖全面，满足所有验收标准"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-07T10:00:00Z"
+
+waiver: { active: false }
+
+top_issues: []
+
+quality_score: 90
+expires: "2025-12-21T10:00:00Z"
+
+evidence:
+  tests_reviewed: 15
+  risks_identified: 3
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: "基本安全措施到位，但需要实现速率限制和文件病毒扫描（参考之前门禁建议）"
+  performance:
+    status: PASS
+    notes: "分页和搜索功能实现良好，响应时间符合要求"
+  reliability:
+    status: PASS
+    notes: "错误处理完善，事务管理正确"
+  maintainability:
+    status: PASS
+    notes: "代码结构清晰，遵循架构规范"
+
+recommendations:
+  immediate: []
+  future:
+    - action: "实现API速率限制"
+      refs: ["apps/api/src/main/java/com/hotel/config/SecurityConfig.java", "apps/api/src/main/java/com/hotel/controller/HotelController.java"]
+    - action: "为文件上传添加病毒扫描"
+      refs: ["apps/api/src/main/java/com/hotel/service/FileService.java"]
+    - action: "考虑为酒店搜索添加Redis缓存"
+      refs: ["apps/api/src/main/java/com/hotel/service/HotelService.java"]
+    - action: "实现酒店批量导入功能"
+      refs: ["apps/api/src/main/java/com/hotel/controller/HotelController.java"]

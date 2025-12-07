@@ -98,7 +98,8 @@ public class SecurityConfig {
             .authorizeRequests()
 
             // 公开接口
-            .antMatchers("/v1/auth/**").permitAll()
+            .antMatchers("/api/auth/**").permitAll()
+            .antMatchers("/api/files/**").permitAll()
             .antMatchers("/v3/api-docs/**").permitAll()
             .antMatchers("/swagger-ui/**").permitAll()
             .antMatchers("/swagger-ui.html").permitAll()

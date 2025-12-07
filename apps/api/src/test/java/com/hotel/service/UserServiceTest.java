@@ -2,8 +2,10 @@ package com.hotel.service;
 
 import com.hotel.dto.CreateUserRequest;
 import com.hotel.dto.AuthResponse;
+import com.hotel.dto.LoginRequest;
 import com.hotel.entity.User;
 import com.hotel.repository.UserRepository;
+import com.hotel.util.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,10 +30,15 @@ class UserServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private JwtUtil jwtUtil;
+
     @InjectMocks
     private UserService userService;
 
     private CreateUserRequest validRequest;
+    private LoginRequest validLoginRequest;
+    private User testUser;
 
     @BeforeEach
     void setUp() {
@@ -41,6 +48,21 @@ class UserServiceTest {
         validRequest.setPhone("13800138000");
         validRequest.setPassword("Test123!@#");
         validRequest.setRole("USER");
+
+        validLoginRequest = new LoginRequest();
+        validLoginRequest.setIdentifier("testuser");
+        validLoginRequest.setPassword("Test123!@#");
+
+        testUser = new User();
+        testUser.setId(1L);
+        testUser.setUsername("testuser");
+        testUser.setEmail("test@example.com");
+        testUser.setPhone("13800138000");
+        testUser.setPassword("encodedPassword");
+        testUser.setRole("USER");
+        testUser.setStatus("ACTIVE");
+        testUser.setCreatedAt(LocalDateTime.now());
+        testUser.setUpdatedAt(LocalDateTime.now());
     }
 
     @Test
@@ -347,5 +369,202 @@ class UserServiceTest {
         assertEquals("用户不存在", exception.getMessage());
         verify(userRepository).selectById(999L);
         verify(userRepository, never()).updateById(any(User.class));
+    }
+
+    // ========== 登录功能测试 ==========
+
+    @Test
+    void testLogin_Success() {
+        // Given
+        when(userRepository.findByIdentifier("testuser")).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("Test123!@#", "encodedPassword")).thenReturn(true);
+        when(jwtUtil.generateToken("testuser", 1L, "USER")).thenReturn("mock-jwt-token");
+        when(jwtUtil.generateRefreshToken("testuser", 1L)).thenReturn("mock-refresh-token");
+        when(userRepository.updateById(any(User.class))).thenReturn(1);
+
+        // When
+        AuthResponse.Data result = userService.login(validLoginRequest);
+
+        // Then
+        assertNotNull(result);
+        assertNotNull(result.getUser());
+        assertEquals("testuser", result.getUser().getUsername());
+        assertEquals("test@example.com", result.getUser().getEmail());
+        assertEquals("13800138000", result.getUser().getPhone());
+        assertEquals("USER", result.getUser().getRole());
+        assertEquals("ACTIVE", result.getUser().getStatus());
+        assertEquals("mock-jwt-token", result.getToken());
+        assertEquals("mock-refresh-token", result.getRefreshToken());
+        assertEquals(86400L, result.getExpiresIn());
+
+        verify(userRepository).findByIdentifier("testuser");
+        verify(passwordEncoder).matches("Test123!@#", "encodedPassword");
+        verify(jwtUtil).generateToken("testuser", 1L, "USER");
+        verify(jwtUtil).generateRefreshToken("testuser", 1L);
+        verify(userRepository).updateById(any(User.class));
+    }
+
+    @Test
+    void testLogin_WithUsername_Success() {
+        // Given
+        LoginRequest usernameLoginRequest = new LoginRequest();
+        usernameLoginRequest.setIdentifier("testuser");
+        usernameLoginRequest.setPassword("Test123!@#");
+
+        when(userRepository.findByIdentifier("testuser")).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("Test123!@#", "encodedPassword")).thenReturn(true);
+        when(jwtUtil.generateToken("testuser", 1L, "USER")).thenReturn("mock-jwt-token");
+        when(jwtUtil.generateRefreshToken("testuser", 1L)).thenReturn("mock-refresh-token");
+        when(userRepository.updateById(any(User.class))).thenReturn(1);
+
+        // When
+        AuthResponse.Data result = userService.login(usernameLoginRequest);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("testuser", result.getUser().getUsername());
+        assertEquals("mock-jwt-token", result.getToken());
+        verify(userRepository).findByIdentifier("testuser");
+    }
+
+    @Test
+    void testLogin_WithEmail_Success() {
+        // Given
+        LoginRequest emailLoginRequest = new LoginRequest();
+        emailLoginRequest.setIdentifier("test@example.com");
+        emailLoginRequest.setPassword("Test123!@#");
+
+        when(userRepository.findByIdentifier("test@example.com")).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("Test123!@#", "encodedPassword")).thenReturn(true);
+        when(jwtUtil.generateToken("testuser", 1L, "USER")).thenReturn("mock-jwt-token");
+        when(jwtUtil.generateRefreshToken("testuser", 1L)).thenReturn("mock-refresh-token");
+        when(userRepository.updateById(any(User.class))).thenReturn(1);
+
+        // When
+        AuthResponse.Data result = userService.login(emailLoginRequest);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("testuser", result.getUser().getUsername());
+        assertEquals("mock-jwt-token", result.getToken());
+        verify(userRepository).findByIdentifier("test@example.com");
+    }
+
+    @Test
+    void testLogin_WithPhone_Success() {
+        // Given
+        LoginRequest phoneLoginRequest = new LoginRequest();
+        phoneLoginRequest.setIdentifier("13800138000");
+        phoneLoginRequest.setPassword("Test123!@#");
+
+        when(userRepository.findByIdentifier("13800138000")).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("Test123!@#", "encodedPassword")).thenReturn(true);
+        when(jwtUtil.generateToken("testuser", 1L, "USER")).thenReturn("mock-jwt-token");
+        when(jwtUtil.generateRefreshToken("testuser", 1L)).thenReturn("mock-refresh-token");
+        when(userRepository.updateById(any(User.class))).thenReturn(1);
+
+        // When
+        AuthResponse.Data result = userService.login(phoneLoginRequest);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("testuser", result.getUser().getUsername());
+        assertEquals("mock-jwt-token", result.getToken());
+        verify(userRepository).findByIdentifier("13800138000");
+    }
+
+    @Test
+    void testLogin_UserNotFound() {
+        // Given
+        when(userRepository.findByIdentifier("nonexistent")).thenReturn(Optional.empty());
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> userService.login(new LoginRequest("nonexistent", "password"))
+        );
+
+        assertEquals("用户名、邮箱或手机号不存在", exception.getMessage());
+        verify(userRepository).findByIdentifier("nonexistent");
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+        verify(jwtUtil, never()).generateToken(anyString(), anyLong(), anyString());
+    }
+
+    @Test
+    void testLogin_UserInactive() {
+        // Given
+        testUser.setStatus("INACTIVE");
+        when(userRepository.findByIdentifier("testuser")).thenReturn(Optional.of(testUser));
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> userService.login(validLoginRequest)
+        );
+
+        assertEquals("账户已被禁用，请联系管理员", exception.getMessage());
+        verify(userRepository).findByIdentifier("testuser");
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+        verify(jwtUtil, never()).generateToken(anyString(), anyLong(), anyString());
+    }
+
+    @Test
+    void testLogin_WrongPassword() {
+        // Given
+        when(userRepository.findByIdentifier("testuser")).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("wrongpassword", "encodedPassword")).thenReturn(false);
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> userService.login(new LoginRequest("testuser", "wrongpassword"))
+        );
+
+        assertEquals("用户名或密码错误", exception.getMessage());
+        verify(userRepository).findByIdentifier("testuser");
+        verify(passwordEncoder).matches("wrongpassword", "encodedPassword");
+        verify(jwtUtil, never()).generateToken(anyString(), anyLong(), anyString());
+    }
+
+    @Test
+    void testLogin_AdminUser_Success() {
+        // Given
+        testUser.setRole("ADMIN");
+        when(userRepository.findByIdentifier("admin")).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("Admin123!@#", "encodedPassword")).thenReturn(true);
+        when(jwtUtil.generateToken("testuser", 1L, "ADMIN")).thenReturn("mock-admin-jwt-token");
+        when(jwtUtil.generateRefreshToken("testuser", 1L)).thenReturn("mock-refresh-token");
+        when(userRepository.updateById(any(User.class))).thenReturn(1);
+
+        LoginRequest adminLoginRequest = new LoginRequest();
+        adminLoginRequest.setIdentifier("admin");
+        adminLoginRequest.setPassword("Admin123!@#");
+
+        // When
+        AuthResponse.Data result = userService.login(adminLoginRequest);
+
+        // Then
+        assertNotNull(result);
+        assertEquals("ADMIN", result.getUser().getRole());
+        assertEquals("mock-admin-jwt-token", result.getToken());
+        verify(jwtUtil).generateToken("testuser", 1L, "ADMIN");
+    }
+
+    @Test
+    void testLogin_PasswordEncoderThrowsException() {
+        // Given
+        when(userRepository.findByIdentifier("testuser")).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("Test123!@#", "encodedPassword"))
+                .thenThrow(new RuntimeException("Password encoding error"));
+
+        // When & Then
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> userService.login(validLoginRequest)
+        );
+
+        assertEquals("用户名或密码错误", exception.getMessage());
+        verify(userRepository).findByIdentifier("testuser");
+        verify(passwordEncoder).matches("Test123!@#", "encodedPassword");
     }
 }
