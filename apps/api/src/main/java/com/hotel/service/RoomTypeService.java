@@ -176,9 +176,11 @@ public class RoomTypeService {
     }
 
     /**
-     * 根据ID获取房间类型
+     * 根据ID获取房间类型（缓存2小时）
      */
+    @Cacheable(value = "room-types", key = "#id", unless = "#result == null")
     public RoomTypeResponse getRoomTypeById(Long id) {
+        log.debug("从数据库获取房间类型信息: roomTypeId={}", id);
         RoomType roomType = getRoomTypeEntityById(id);
         return convertToResponse(roomType);
     }

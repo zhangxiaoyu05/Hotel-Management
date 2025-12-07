@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -122,9 +123,11 @@ public class RoomService {
     }
 
     /**
-     * 根据ID获取房间
+     * 根据ID获取房间（缓存1小时）
      */
+    @Cacheable(value = "rooms", key = "#id", unless = "#result == null")
     public RoomResponse getRoomById(Long id) {
+        log.debug("从数据库获取房间信息: roomId={}", id);
         Room room = roomRepository.selectById(id);
         if (room == null || room.getDeleted() == 1) {
             throw new ResourceNotFoundException("房间不存在");

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hotel.repository.OrderRepository">
+
+    <select id="findConflictingOrders" resultType="com.hotel.entity.Order">
+        SELECT * FROM orders
+        WHERE room_id = #{roomId}
+        AND deleted = 0
+        AND status IN ('CONFIRMED', 'RESERVED')
+        AND (
+            (check_in_date &lt;= #{checkOutDate} AND check_out_date &gt;= #{checkInDate})
+        )
+    </select>
+
+    <select id="countTodayOrders" resultType="int">
+        SELECT COUNT(*) FROM orders
+        WHERE DATE(created_at) = #{date}
+        AND deleted = 0
+    </select>
+
+    <select id="findByOrderNumber" resultType="com.hotel.entity.Order">
+        SELECT * FROM orders
+        WHERE order_number = #{orderNumber}
+        AND deleted = 0
+    </select>
+
+    <select id="findByUserId" resultType="com.hotel.entity.Order">
+        SELECT * FROM orders
+        WHERE user_id = #{userId}
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        AND deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+</mapper>
