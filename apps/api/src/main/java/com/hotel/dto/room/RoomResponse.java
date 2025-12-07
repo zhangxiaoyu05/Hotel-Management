@@ -37,4 +37,18 @@ public class RoomResponse {
     private LocalDateTime updatedAt;
 
     private String roomTypeName;
+
+    // 价格计算相关字段
+    private BigDecimal calculatedPrice; // 根据价格策略计算后的价格
+
+    private Boolean priceChanged = false; // 价格是否有变化
+
+    private BigDecimal priceChange; // 价格变化金额
+
+    private String priceChangePercentage; // 价格变化百分比
+
+    // 特殊价格信息
+    private Boolean hasSpecialPrice = false;
+
+    private String specialPriceReason;
 }

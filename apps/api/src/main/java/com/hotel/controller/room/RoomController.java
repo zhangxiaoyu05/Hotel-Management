@@ -17,7 +17,10 @@ import org.springframework.web.bind.annotation.*;
 import javax.validation.Valid;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.Max;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 房间管理控制器
@@ -146,5 +149,70 @@ public class RoomController extends BaseController {
 
         RoomListResponse response = roomService.searchRooms(searchRequest);
         return success(response.getContent());
+    }
+
+    // ==================== 价格计算相关API ====================
+
+    @Operation(summary = "获取房间在指定日期的价格", description = "根据价格策略计算房间在指定日期的价格")
+    @GetMapping("/{id}/price-for-date")
+    @RateLimit(period = 60, limit = 50, type = RateLimit.LimitType.IP,
+              prefix = "room_price_date", message = "价格计算请求过于频繁，请稍后再试")
+    public ResponseEntity<ApiResponse<BigDecimal>> getRoomPriceForDate(
+            @Parameter(description = "房间ID") @PathVariable Long id,
+            @Parameter(description = "日期") @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        BigDecimal price = roomService.getRoomPriceForDate(id, date);
+        return success(price, "获取房间价格成功");
+    }
+
+    @Operation(summary = "获取房间在日期范围内的价格", description = "计算房间在指定日期范围内的每日价格")
+    @GetMapping("/{id}/prices-for-range")
+    @RateLimit(period = 60, limit = 20, type = RateLimit.LimitType.IP,
+              prefix = "room_prices_range", message = "价格计算请求过于频繁，请稍后再试")
+    public ResponseEntity<ApiResponse<Map<LocalDate, BigDecimal>>> getRoomPricesForDateRange(
+            @Parameter(description = "房间ID") @PathVariable Long id,
+            @Parameter(description = "开始日期") @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @Parameter(description = "结束日期") @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        Map<LocalDate, BigDecimal> prices = roomService.getRoomPricesForDateRange(id, startDate, endDate);
+        return success(prices, "获取房间价格范围成功");
+    }
+
+    @Operation(summary = "获取房间列表的价格信息", description = "批量获取多个房间在指定日期的价格")
+    @PostMapping("/prices-for-date")
+    @RateLimit(period = 60, limit = 20, type = RateLimit.LimitType.IP,
+              prefix = "rooms_prices", message = "价格计算请求过于频繁，请稍后再试")
+    public ResponseEntity<ApiResponse<Map<Long, BigDecimal>>> getRoomsPricesForDate(
+            @Parameter(description = "房间ID列表") @RequestBody List<Long> roomIds,
+            @Parameter(description = "日期") @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        Map<Long, BigDecimal> prices = roomService.getRoomPricesForDate(roomIds, date);
+        return success(prices, "获取房间列表价格成功");
+    }
+
+    @Operation(summary = "获取包含价格信息的房间详情", description = "获取房间详情，包含根据价格策略计算后的价格信息")
+    @GetMapping("/{id}/with-price")
+    @RateLimit(period = 60, limit = 30, type = RateLimit.LimitType.IP,
+              prefix = "room_with_price", message = "请求过于频繁，请稍后再试")
+    public ResponseEntity<ApiResponse<RoomResponse>> getRoomWithPriceInfo(
+            @Parameter(description = "房间ID") @PathVariable Long id,
+            @Parameter(description = "日期") @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate date) {
+
+        RoomResponse response = roomService.getRoomWithPriceInfo(id, date);
+        return success(response, "获取房间详情成功");
+    }
+
+    @Operation(summary = "批量更新房间价格", description = "批量更新多个房间的价格并记录价格变更历史")
+    @PostMapping("/batch-update-price")
+    @PreAuthorize("hasRole('ADMIN')")
+    @RateLimit(period = 60, limit = 5, type = RateLimit.LimitType.USER,
+              prefix = "room_batch_price", message = "批量更新价格过于频繁，请稍后再试")
+    public ResponseEntity<ApiResponse<Void>> batchUpdateRoomPrice(
+            @Parameter(description = "房间ID列表") @RequestBody List<Long> roomIds,
+            @Parameter(description = "新价格") @RequestParam BigDecimal newPrice,
+            @Parameter(description = "变更原因") @RequestParam(required = false) String reason) {
+
+        roomService.batchUpdateRoomPrice(roomIds, newPrice, reason);
+        return success(null, "批量更新房间价格成功");
     }
 }

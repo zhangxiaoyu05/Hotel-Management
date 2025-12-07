@@ -22,8 +22,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +40,7 @@ public class RoomService {
     private final RoomRepository roomRepository;
     private final RoomTypeRepository roomTypeRepository;
     private final ObjectMapper objectMapper;
+    private final PricingService pricingService;
 
     /**
      * 创建房间
@@ -287,6 +291,108 @@ public class RoomService {
 
         // 解析图片
         response.setImages(room.getImageList());
+
+        return response;
+    }
+
+    /**
+     * 获取房间在指定日期的价格
+     * @param roomId 房间ID
+     * @param date 日期
+     * @return 计算后的价格
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal getRoomPriceForDate(Long roomId, LocalDate date) {
+        return pricingService.calculateRoomPrice(roomId, date);
+    }
+
+    /**
+     * 获取房间在日期范围内的价格
+     * @param roomId 房间ID
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 日期到价格的映射
+     */
+    @Transactional(readOnly = true)
+    public Map<LocalDate, BigDecimal> getRoomPricesForDateRange(Long roomId, LocalDate startDate, LocalDate endDate) {
+        return pricingService.calculateRoomPricesForDateRange(roomId, startDate, endDate);
+    }
+
+    /**
+     * 获取房间列表的价格信息
+     * @param roomIds 房间ID列表
+     * @param date 日期
+     * @return 房间ID到价格的映射
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, BigDecimal> getRoomPricesForDate(List<Long> roomIds, LocalDate date) {
+        return roomIds.stream()
+                .collect(Collectors.toMap(
+                        roomId -> roomId,
+                        roomId -> pricingService.calculateRoomPrice(roomId, date)
+                ));
+    }
+
+    /**
+     * 批量更新房间价格并记录历史
+     * @param roomIds 房间ID列表
+     * @param newPrice 新价格
+     * @param reason 变更原因
+     */
+    @Transactional
+    public void batchUpdateRoomPrice(List<Long> roomIds, BigDecimal newPrice, String reason) {
+        Long currentUserId = getCurrentUserId();
+
+        for (Long roomId : roomIds) {
+            Room room = roomRepository.selectById(roomId);
+            if (room != null) {
+                BigDecimal oldPrice = room.getPrice();
+
+                // 更新房间价格
+                room.setPrice(newPrice);
+                roomRepository.updateById(room);
+
+                // 记录价格变更历史
+                RoomType roomType = roomTypeRepository.selectById(room.getRoomTypeId());
+                if (roomType != null) {
+                    pricingService.recordPriceChange(
+                            room.getHotelId(),
+                            room.getRoomTypeId(),
+                            roomId,
+                            oldPrice,
+                            newPrice,
+                            "MANUAL",
+                            reason,
+                            currentUserId
+                    );
+                }
+            }
+        }
+
+        log.info("批量更新房间价格完成，房间数量: {}, 新价格: {}", roomIds.size(), newPrice);
+    }
+
+    /**
+     * 扩展房间响应对象，包含价格信息
+     */
+    public RoomResponse getRoomWithPriceInfo(Long roomId, LocalDate date) {
+        Room room = roomRepository.selectById(roomId);
+        if (room == null) {
+            throw new ResourceNotFoundException("房间不存在: " + roomId);
+        }
+
+        RoomType roomType = roomTypeRepository.selectById(room.getRoomTypeId());
+        RoomResponse response = convertToRoomResponse(room, roomType != null ? roomType.getName() : null);
+
+        // 添加价格信息
+        BigDecimal currentPrice = pricingService.calculateRoomPrice(roomId, date);
+        response.setCalculatedPrice(currentPrice);
+
+        // 添加价格变更信息
+        if (room.getPrice() != null && !room.getPrice().equals(currentPrice)) {
+            response.setPriceChanged(true);
+            response.setPriceChange(currentPrice.subtract(room.getPrice()));
+        }
 
         return response;
     }
