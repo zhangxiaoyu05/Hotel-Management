@@ -1,11 +1,15 @@
 package com.hotel.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
@@ -38,6 +42,37 @@ public class Room {
 
     @TableField("images")
     private String images;
+
+    /**
+     * 获取房间图片列表
+     * @return 图片URL列表
+     */
+    public List<String> getImageList() {
+        if (images == null || images.trim().isEmpty()) {
+            return List.of();
+        }
+        try {
+            return new ObjectMapper().readValue(images, new TypeReference<List<String>>() {});
+        } catch (JsonProcessingException e) {
+            return List.of();
+        }
+    }
+
+    /**
+     * 设置房间图片列表
+     * @param imageList 图片URL列表
+     */
+    public void setImageList(List<String> imageList) {
+        if (imageList == null || imageList.isEmpty()) {
+            this.images = null;
+            return;
+        }
+        try {
+            this.images = new ObjectMapper().writeValueAsString(imageList);
+        } catch (JsonProcessingException e) {
+            this.images = null;
+        }
+    }
 
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
