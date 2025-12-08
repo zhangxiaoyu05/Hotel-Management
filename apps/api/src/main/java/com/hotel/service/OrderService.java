@@ -7,6 +7,8 @@ import com.hotel.dto.order.OrderResponse;
 import com.hotel.dto.order.UpdateOrderRequest;
 import com.hotel.dto.order.PricingRequest;
 import com.hotel.dto.order.PriceBreakdown;
+import com.hotel.dto.bookingConflict.DetectConflictRequest;
+import com.hotel.dto.bookingConflict.ConflictDetectionResult;
 import com.hotel.entity.Order;
 import com.hotel.entity.Room;
 import com.hotel.entity.Hotel;
@@ -17,6 +19,7 @@ import com.hotel.repository.HotelRepository;
 import com.hotel.repository.UserRepository;
 import com.hotel.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
@@ -29,6 +32,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -40,9 +44,24 @@ public class OrderService {
     private final NotificationService notificationService;
     private final BookingPricingService bookingPricingService;
     private final RoomStatusService roomStatusService;
+    private final BookingConflictService bookingConflictService;
     private final ApplicationEventPublisher eventPublisher;
 
     private static final BigDecimal SERVICE_FEE_RATE = new BigDecimal("0.10");
+
+    /**
+     * 检测预订冲突
+     */
+    public ConflictDetectionResult detectBookingConflict(Long roomId, Long userId, LocalDate checkInDate, LocalDate checkOutDate) {
+        DetectConflictRequest detectRequest = DetectConflictRequest.builder()
+                .roomId(roomId)
+                .userId(userId)
+                .checkInDate(checkInDate.atStartOfDay())
+                .checkOutDate(checkOutDate.atStartOfDay())
+                .build();
+
+        return bookingConflictService.detectConflict(detectRequest);
+    }
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -462,6 +481,15 @@ public class OrderService {
             order.getOrderNumber(),
             cancelReason != null ? cancelReason : "用户取消"
         );
+
+        // 处理等待列表 - 异步处理以避免阻塞
+        try {
+            log.info("Processing waiting list for room {} after order cancellation", order.getRoomId());
+            bookingConflictService.processWaitingListForRoom(order.getRoomId());
+        } catch (Exception e) {
+            log.error("Failed to process waiting list after order cancellation: {}", e.getMessage(), e);
+            // 等待列表处理失败不影响订单取消流程
+        }
 
         // 返回更新后的订单信息
         OrderResponse response = new OrderResponse();

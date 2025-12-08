@@ -7,12 +7,14 @@ import com.hotel.dto.order.CreateOrderRequest;
 import com.hotel.dto.order.OrderListResponse;
 import com.hotel.dto.order.OrderResponse;
 import com.hotel.dto.order.UpdateOrderRequest;
+import com.hotel.dto.bookingConflict.ConflictDetectionResult;
 import com.hotel.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -72,5 +74,20 @@ public class OrderController extends BaseController {
     public ResponseEntity<ApiResponse<OrderResponse>> getOrderByNumber(@PathVariable String orderNumber) {
         OrderResponse response = orderService.getOrderByNumber(orderNumber);
         return ResponseEntity.ok(success(response));
+    }
+
+    @GetMapping("/check-conflict")
+    @RateLimit(period = 60, limit = 30, type = RateLimit.LimitType.USER,
+              prefix = "order_check_conflict", message = "冲突检查操作过于频繁，请稍后再试")
+    public ResponseEntity<ApiResponse<ConflictDetectionResult>> checkBookingConflict(
+            @RequestParam Long roomId,
+            @RequestParam LocalDate checkInDate,
+            @RequestParam LocalDate checkOutDate) {
+
+        Long currentUserId = getCurrentUserId();
+        ConflictDetectionResult result = orderService.detectBookingConflict(
+                roomId, currentUserId, checkInDate, checkOutDate
+        );
+        return ResponseEntity.ok(success(result));
     }
 }

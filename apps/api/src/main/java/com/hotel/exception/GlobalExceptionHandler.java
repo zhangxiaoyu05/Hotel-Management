@@ -14,9 +14,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 全局异常处理器
@@ -25,6 +24,42 @@ import java.util.Set;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * 处理预订冲突相关异常
+     */
+    @ExceptionHandler(BookingConflictException.class)
+    public ResponseEntity<ErrorResponse> handleBookingConflictException(BookingConflictException e) {
+        log.warn("预订冲突异常: {}", e.getMessage(), e);
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .success(false)
+                .code(e.getErrorCode() != null ? e.getErrorCode() : "BOOKING_CONFLICT_ERROR")
+                .message(e.getMessage())
+                .details(createDetailsFromArgs(e.getArgs()))
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * 处理并发冲突异常
+     */
+    @ExceptionHandler(BookingConflictException.ConcurrentConflictException.class)
+    public ResponseEntity<ErrorResponse> handleConcurrentConflictException(BookingConflictException.ConcurrentConflictException e) {
+        log.warn("并发冲突异常: {}", e.getMessage(), e);
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .success(false)
+                .code(e.getErrorCode() != null ? e.getErrorCode() : "CONCURRENT_CONFLICT")
+                .message(e.getMessage())
+                .details(createDetailsFromArgs(e.getArgs()))
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    }
 
     /**
      * 处理业务异常
@@ -224,6 +259,20 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+    }
+
+    // 私有辅助方法
+
+    private Map<String, Object> createDetailsFromArgs(Object[] args) {
+        if (args == null || args.length == 0) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, Object> details = new LinkedHashMap<>();
+        for (int i = 0; i < args.length; i++) {
+            details.put("param" + (i + 1), args[i]);
+        }
+        return details;
     }
 
     /**
