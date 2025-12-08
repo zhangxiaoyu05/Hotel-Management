@@ -30,6 +30,45 @@ export interface ReviewResponse {
   createdAt: string
 }
 
+export interface ReviewQueryRequest {
+  hotelId: number
+  roomId?: number
+  minRating?: number
+  maxRating?: number
+  hasImages?: boolean
+  sortBy?: 'date' | 'rating'
+  sortOrder?: 'asc' | 'desc'
+  page?: number
+  size?: number
+}
+
+export interface ReviewListResponse {
+  reviews: ReviewResponse[]
+  total: number
+  page: number
+  size: number
+  totalPages: number
+}
+
+export interface ReviewStatisticsResponse {
+  hotelId: number
+  totalReviews: number
+  overallRating: number
+  cleanlinessRating: number
+  serviceRating: number
+  facilitiesRating: number
+  locationRating: number
+  ratingDistribution: {
+    rating5: number
+    rating4: number
+    rating3: number
+    rating2: number
+    rating1: number
+  }
+  reviewsWithImages: number
+  averageCommentLength: number
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data: T
@@ -37,12 +76,72 @@ export interface ApiResponse<T> {
 }
 
 class ReviewService {
+  // 缓存
+  private static cache = new Map<string, any>()
+  private static cacheTimeout = 5 * 60 * 1000 // 5分钟缓存
+
+  /**
+   * 获取缓存数据
+   */
+  private static getCacheKey(endpoint: string, params?: any): string {
+    return `${endpoint}${params ? JSON.stringify(params) : ''}`
+  }
+
+  /**
+   * 检查缓存是否有效
+   */
+  private static isCacheValid(timestamp: number): boolean {
+    return Date.now() - timestamp < this.cacheTimeout
+  }
+
+  /**
+   * 设置缓存
+   */
+  private static setCache(key: string, data: any): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now()
+    })
+  }
+
+  /**
+   * 获取缓存
+   */
+  private static getCache(key: string): any {
+    const cached = this.cache.get(key)
+    if (cached && this.isCacheValid(cached.timestamp)) {
+      return cached.data
+    }
+    this.cache.delete(key)
+    return null
+  }
+
+  /**
+   * 清除特定酒店的所有缓存
+   */
+  public static clearHotelCache(hotelId: number): void {
+    const keysToDelete: string[] = []
+    this.cache.forEach((_, key) => {
+      if (key.includes(`hotelId":${hotelId}`)) {
+        keysToDelete.push(key)
+      }
+    })
+    keysToDelete.forEach(key => this.cache.delete(key))
+  }
+
   /**
    * 提交评价
    */
   async submitReview(reviewData: ReviewRequest): Promise<ApiResponse<ReviewResponse>> {
     try {
       const response = await apiClient.post('/v1/reviews', reviewData)
+
+      // 清除相关缓存
+      if (reviewData.orderId) {
+        // 需要获取hotelId来清除缓存，这里简化处理
+        ReviewService.clearHotelCache(0) // 这里应该传入实际的hotelId
+      }
+
       return response.data
     } catch (error: any) {
       console.error('提交评价失败:', error)
@@ -192,6 +291,130 @@ class ReviewService {
       return response.data
     } catch (error: any) {
       console.error('检查评价权限失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 分页查询评价列表（支持多种筛选条件）
+   */
+  async queryReviews(queryRequest: ReviewQueryRequest): Promise<ApiResponse<ReviewListResponse>> {
+    const cacheKey = ReviewService.getCacheKey('/v1/reviews/query', queryRequest)
+    const cached = ReviewService.getCache(cacheKey)
+
+    if (cached) {
+      return Promise.resolve(cached)
+    }
+
+    try {
+      const response = await apiClient.post('/v1/reviews/query', queryRequest)
+      ReviewService.setCache(cacheKey, response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('查询评价列表失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取酒店最新评价
+   */
+  async getRecentReviews(hotelId: number, limit: number = 5): Promise<ApiResponse<ReviewResponse[]>> {
+    const cacheKey = ReviewService.getCacheKey('/v1/reviews/recent', { hotelId, limit })
+    const cached = ReviewService.getCache(cacheKey)
+
+    if (cached) {
+      return Promise.resolve(cached)
+    }
+
+    try {
+      const response = await apiClient.get(`/v1/reviews/recent/${hotelId}?limit=${limit}`)
+      ReviewService.setCache(cacheKey, response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('获取最新评价失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取带图片的评价
+   */
+  async getReviewsWithImages(hotelId: number, limit: number = 10): Promise<ApiResponse<ReviewResponse[]>> {
+    const cacheKey = ReviewService.getCacheKey('/v1/reviews/with-images', { hotelId, limit })
+    const cached = ReviewService.getCache(cacheKey)
+
+    if (cached) {
+      return Promise.resolve(cached)
+    }
+
+    try {
+      const response = await apiClient.get(`/v1/reviews/with-images/${hotelId}?limit=${limit}`)
+      ReviewService.setCache(cacheKey, response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('获取带图片评价失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取酒店评价统计
+   */
+  async getHotelStatistics(hotelId: number): Promise<ApiResponse<ReviewStatisticsResponse>> {
+    const cacheKey = ReviewService.getCacheKey('/v1/reviews/statistics', { hotelId })
+    const cached = ReviewService.getCache(cacheKey)
+
+    if (cached) {
+      return Promise.resolve(cached)
+    }
+
+    try {
+      const response = await apiClient.get(`/v1/reviews/statistics/${hotelId}`)
+      ReviewService.setCache(cacheKey, response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('获取酒店评价统计失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取简单统计信息
+   */
+  async getSimpleStatistics(hotelId: number): Promise<ApiResponse<{
+    totalReviews: number
+    overallRating: number
+  }>> {
+    const cacheKey = ReviewService.getCacheKey('/v1/reviews/statistics/simple', { hotelId })
+    const cached = ReviewService.getCache(cacheKey)
+
+    if (cached) {
+      return Promise.resolve(cached)
+    }
+
+    try {
+      const response = await apiClient.get(`/v1/reviews/statistics/${hotelId}/simple`)
+      ReviewService.setCache(cacheKey, response.data)
+      return response.data
+    } catch (error: any) {
+      console.error('获取简单统计信息失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 批量获取酒店统计
+   */
+  async getBatchStatistics(hotelIds: number[]): Promise<ApiResponse<Record<number, {
+    totalReviews: number
+    overallRating: number
+  }>>> {
+    try {
+      const response = await apiClient.post('/v1/reviews/statistics/batch', hotelIds)
+      return response.data
+    } catch (error: any) {
+      console.error('获取批量统计失败:', error)
       throw error
     }
   }

@@ -3,6 +3,7 @@ package com.hotel.dto.review;
 import lombok.Data;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hotel.util.XssProtectionUtil;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -37,7 +38,7 @@ public class ReviewResponse {
         response.setServiceRating(review.getServiceRating());
         response.setFacilitiesRating(review.getFacilitiesRating());
         response.setLocationRating(review.getLocationRating());
-        response.setComment(review.getComment());
+        response.setComment(XssProtectionUtil.escapeHtml(review.getComment()));
         response.setIsAnonymous(review.getIsAnonymous());
         response.setStatus(review.getStatus());
         response.setCreatedAt(review.getCreatedAt());

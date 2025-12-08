@@ -2,13 +2,20 @@ package com.hotel.service;
 
 import com.hotel.dto.review.ReviewRequest;
 import com.hotel.dto.review.ReviewResponse;
+import com.hotel.dto.review.ReviewQueryRequest;
+import com.hotel.dto.review.ReviewListResponse;
 import com.hotel.entity.Review;
 import com.hotel.repository.ReviewRepository;
 import com.hotel.repository.OrderRepository;
 import com.hotel.util.HtmlSanitizer;
+import com.hotel.util.XssProtectionUtil;
 import com.hotel.service.cache.ReviewCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -26,6 +34,7 @@ public class ReviewService {
     private final OrderRepository orderRepository;
     private final FileService fileService;
     private final ReviewCacheService reviewCacheService;
+    private final ReviewStatisticsService reviewStatisticsService;
 
     // 敏感词列表 - 实际项目中应该从数据库或配置文件加载
     private static final List<String> SENSITIVE_WORDS = Arrays.asList(
@@ -91,6 +100,7 @@ public class ReviewService {
         // 清除相关缓存
         reviewCacheService.evictHotelReviewsCache(review.getHotelId());
         reviewCacheService.evictUserReviewsCache(userId);
+        reviewStatisticsService.evictStatisticsCache(review.getHotelId());
 
         return ReviewResponse.fromEntity(review);
     }
@@ -187,5 +197,71 @@ public class ReviewService {
         }
 
         return true;
+    }
+
+    /**
+     * 分页查询评价列表（支持多种筛选条件）
+     */
+    public ReviewListResponse getReviewsWithFilters(ReviewQueryRequest queryRequest) {
+        // 构建排序条件
+        Sort.Direction direction = "asc".equalsIgnoreCase(queryRequest.getSortOrder())
+            ? Sort.Direction.ASC : Sort.Direction.DESC;
+
+        String sortBy = "rating".equals(queryRequest.getSortBy())
+            ? "overallRating" : "createdAt";
+
+        Sort sort = Sort.by(direction, sortBy);
+        Pageable pageable = PageRequest.of(
+            queryRequest.getPage() - 1, // Spring Data JPA页码从0开始
+            queryRequest.getSize(),
+            sort
+        );
+
+        // 执行查询
+        Page<Review> reviewPage = reviewRepository.findReviewsWithFilters(
+            queryRequest.getHotelId(),
+            queryRequest.getRoomId(),
+            queryRequest.getMinRating(),
+            queryRequest.getMaxRating(),
+            queryRequest.getHasImages(),
+            pageable
+        );
+
+        // 转换为响应对象
+        List<ReviewResponse> reviewResponses = reviewPage.getContent().stream()
+            .map(ReviewResponse::fromEntity)
+            .collect(Collectors.toList());
+
+        return new ReviewListResponse(
+            reviewResponses,
+            reviewPage.getTotalElements(),
+            queryRequest.getPage(),
+            queryRequest.getSize()
+        );
+    }
+
+    /**
+     * 获取酒店的最新评价
+     */
+    public List<ReviewResponse> getRecentReviewsByHotelId(Long hotelId, int limit) {
+        LocalDateTime startDate = LocalDateTime.now().minusMonths(3); // 最近3个月的评价
+        List<Review> reviews = reviewRepository.findRecentReviewsByHotelId(hotelId, startDate);
+
+        return reviews.stream()
+            .limit(limit)
+            .map(ReviewResponse::fromEntity)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取带图片的评价
+     */
+    public List<ReviewResponse> getReviewsWithImagesByHotelId(Long hotelId, int limit) {
+        List<Review> reviews = reviewRepository.findReviewsWithImagesByHotelId(hotelId);
+
+        return reviews.stream()
+            .limit(limit)
+            .map(ReviewResponse::fromEntity)
+            .collect(Collectors.toList());
     }
 }

@@ -1,10 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { ElCard, ElRow, ElCol, ElButton, ElImage, ElRate, ElTag } from 'element-plus'
+import { ref, onMounted, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElCard, ElRow, ElCol, ElButton, ElImage, ElRate, ElTag, ElMessage } from 'element-plus'
+import RatingStars from '@/components/business/RatingStars.vue'
+import ReviewStatistics from '@/components/business/ReviewStatistics.vue'
+import reviewService, { type ReviewResponse, type ReviewStatisticsResponse } from '@/services/reviewService'
 
 const route = useRoute()
+const router = useRouter()
 const hotelId = route.params.id
+
+// 评价相关数据
+const reviewStatistics = ref<ReviewStatisticsResponse | null>(null)
+const recentReviews = ref<ReviewResponse[]>([])
+const loadingReviews = ref(false)
 
 const hotel = ref({
   id: 1,
@@ -51,9 +60,80 @@ const bookRoom = (roomId: number) => {
   // TODO: 实现预订功能
 }
 
+const goToReviews = () => {
+  router.push(`/hotels/${hotelId}/reviews?hotelName=${encodeURIComponent(hotel.value.name)}`)
+}
+
+const loadReviewStatistics = async () => {
+  try {
+    const response = await reviewService.getHotelStatistics(Number(hotelId))
+    if (response.success) {
+      reviewStatistics.value = response.data
+    }
+  } catch (error) {
+    console.error('加载评价统计失败:', error)
+  }
+}
+
+const loadRecentReviews = async () => {
+  if (loadingReviews.value) return
+
+  loadingReviews.value = true
+  try {
+    const response = await reviewService.getRecentReviews(Number(hotelId), 3)
+    if (response.success) {
+      recentReviews.value = response.data
+    }
+  } catch (error) {
+    console.error('加载最新评价失败:', error)
+  } finally {
+    loadingReviews.value = false
+  }
+}
+
+const truncateText = (text: string, maxLength: number): string => {
+  if (!text) return ''
+  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
+}
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+
+  if (days === 0) {
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    if (hours === 0) {
+      const minutes = Math.floor(diff / (1000 * 60))
+      return minutes === 0 ? '刚刚' : `${minutes}分钟前`
+    }
+    return `${hours}小时前`
+  } else if (days === 1) {
+    return '昨天'
+  } else if (days < 30) {
+    return `${days}天前`
+  } else {
+    return date.toLocaleDateString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  }
+}
+
+const handleAvatarError = (event: Event) => {
+  const img = event.target as HTMLImageElement
+  img.style.display = 'none'
+}
+
 onMounted(() => {
   // TODO: 根据hotelId加载酒店详情
   console.log('加载酒店详情:', hotelId)
+
+  // 加载评价相关数据
+  loadReviewStatistics()
+  loadRecentReviews()
 })
 </script>
 
@@ -103,8 +183,19 @@ onMounted(() => {
               <div class="hotel-header">
                 <h1>{{ hotel.name }}</h1>
                 <div class="hotel-rating">
-                  <ElRate v-model="hotel.rating" disabled />
-                  <span class="rating-text">{{ hotel.rating }} 分</span>
+                  <RatingStars
+                    :rating="reviewStatistics?.overallRating || hotel.rating"
+                    size="large"
+                    readonly
+                  />
+                  <div class="rating-info">
+                    <span class="rating-score">
+                      {{ (reviewStatistics?.overallRating || hotel.rating).toFixed(1) }}
+                    </span>
+                    <span class="rating-count" v-if="reviewStatistics?.totalReviews">
+                      {{ reviewStatistics.totalReviews }}条评价
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -152,6 +243,106 @@ onMounted(() => {
             </ElCard>
           </ElCol>
         </ElRow>
+      </div>
+
+      <!-- Reviews Preview -->
+      <div class="reviews-preview" v-if="recentReviews.length > 0">
+        <ElCard>
+          <template #header>
+            <div class="reviews-header">
+              <h2>住客评价</h2>
+              <ElButton type="primary" size="small" @click="goToReviews">
+                查看全部评价
+              </ElButton>
+            </div>
+          </template>
+
+          <!-- 评价统计摘要 -->
+          <div v-if="reviewStatistics" class="reviews-summary">
+            <div class="summary-rating">
+              <div class="summary-score">
+                {{ reviewStatistics.overallRating.toFixed(1) }}
+              </div>
+              <div class="summary-stars">
+                <RatingStars :rating="Math.round(reviewStatistics.overallRating)" size="small" readonly />
+              </div>
+              <div class="summary-text">
+                {{ reviewStatistics.totalReviews }}条评价 · {{ reviewStatistics.reviewsWithImages }}条带图
+              </div>
+            </div>
+            <div class="summary-dimensions">
+              <div class="dimension-item">
+                <span class="dimension-label">清洁度</span>
+                <span class="dimension-score">{{ reviewStatistics.cleanlinessRating.toFixed(1) }}</span>
+              </div>
+              <div class="dimension-item">
+                <span class="dimension-label">服务</span>
+                <span class="dimension-score">{{ reviewStatistics.serviceRating.toFixed(1) }}</span>
+              </div>
+              <div class="dimension-item">
+                <span class="dimension-label">设施</span>
+                <span class="dimension-score">{{ reviewStatistics.facilitiesRating.toFixed(1) }}</span>
+              </div>
+              <div class="dimension-item">
+                <span class="dimension-label">位置</span>
+                <span class="dimension-score">{{ reviewStatistics.locationRating.toFixed(1) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 最新评价列表 -->
+          <div class="recent-reviews">
+            <div
+              v-for="review in recentReviews"
+              :key="review.id"
+              class="review-item"
+              @click="goToReviews"
+            >
+              <div class="review-avatar">
+                <img
+                  v-if="!review.isAnonymous && review.userId"
+                  :src="`https://api.dicebear.com/7.x/avataaars/svg?seed=${review.userId}`"
+                  :alt="review.isAnonymous ? '匿名用户' : `用户${review.userId}`"
+                  @error="handleAvatarError"
+                />
+                <span v-else class="anonymous-avatar">
+                  {{ review.isAnonymous ? '匿' : 'U' }}
+                </span>
+              </div>
+              <div class="review-content">
+                <div class="review-header-info">
+                  <span class="review-name">
+                    {{ review.isAnonymous ? '匿名用户' : `用户${review.userId}` }}
+                  </span>
+                  <span class="review-date">{{ formatDate(review.createdAt) }}</span>
+                </div>
+                <div class="review-rating">
+                  <RatingStars :rating="review.overallRating" size="small" readonly />
+                </div>
+                <div class="review-comment">
+                  {{ truncateText(review.comment, 120) }}
+                </div>
+                <div class="review-images" v-if="review.images && review.images.length > 0">
+                  <img
+                    v-for="(image, index) in review.images.slice(0, 3)"
+                    :key="index"
+                    :src="image"
+                    :alt="`评价图片${index + 1}`"
+                    class="review-image"
+                  />
+                  <div v-if="review.images.length > 3" class="more-images">
+                    +{{ review.images.length - 3 }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="loadingReviews" class="reviews-loading">
+            <div class="loading-spinner"></div>
+            <span>加载评价中...</span>
+          </div>
+        </ElCard>
       </div>
 
       <!-- Room Types -->
@@ -285,7 +476,24 @@ onMounted(() => {
 .hotel-rating {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.rating-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rating-score {
+  font-size: 24px;
+  font-weight: 600;
+  color: #ff9800;
+}
+
+.rating-count {
+  font-size: 14px;
+  color: #909399;
 }
 
 .rating-text {
@@ -413,6 +621,228 @@ onMounted(() => {
   color: #f56c6c;
 }
 
+/* 评价预览样式 */
+.reviews-preview {
+  margin-bottom: 30px;
+}
+
+.reviews-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reviews-header h2 {
+  margin: 0;
+  color: #303133;
+}
+
+.reviews-summary {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 24px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.summary-rating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.summary-score {
+  font-size: 36px;
+  font-weight: 700;
+  color: #ff9800;
+}
+
+.summary-stars {
+  display: flex;
+}
+
+.summary-text {
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+}
+
+.summary-dimensions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.dimension-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.dimension-label {
+  font-size: 12px;
+  color: #666;
+}
+
+.dimension-score {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ff9800;
+}
+
+.recent-reviews {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.review-item {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.review-item:hover {
+  background: #e9ecef;
+  transform: translateY(-2px);
+}
+
+.review-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.review-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.anonymous-avatar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f4f8;
+  color: #007bff;
+  font-size: 18px;
+}
+
+.review-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-header-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.review-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.review-date {
+  font-size: 12px;
+  color: #666;
+}
+
+.review-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-comment {
+  color: #333;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.review-images {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.review-image {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.3s;
+}
+
+.review-image:hover {
+  transform: scale(1.05);
+}
+
+.more-images {
+  width: 60px;
+  height: 60px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.reviews-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: #666;
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 768px) {
   .main-image {
     height: 250px;
@@ -431,6 +861,30 @@ onMounted(() => {
 
   .room-card {
     padding: 10px;
+  }
+
+  .reviews-summary {
+    flex-direction: column;
+    gap: 20px;
+    padding: 16px;
+  }
+
+  .summary-dimensions {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .review-item {
+    padding: 16px;
+  }
+
+  .review-images {
+    flex-wrap: wrap;
+  }
+
+  .review-image {
+    width: 50px;
+    height: 50px;
   }
 }
 </style>

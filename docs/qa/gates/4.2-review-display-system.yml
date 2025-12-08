@@ -1,0 +1,59 @@
+# Quality Gate Decision for Story 4.2
+schema: 1
+story: "4.2"
+story_title: "评价展示系统"
+gate: "CONCERNS"
+status_reason: "功能已实现但缺少测试覆盖，存在性能和安全风险"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-08T15:30:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "TEST-001"
+    severity: high
+    finding: "所有新功能完全缺少测试覆盖"
+    suggested_action: "为ReviewStatisticsService和所有Vue组件添加单元测试"
+    suggested_owner: "dev"
+  - id: "SEC-001"
+    severity: medium
+    finding: "缺少API查询速率限制"
+    suggested_action: "添加评价查询API的速率限制防止滥用"
+    suggested_owner: "dev"
+  - id: "PERF-001"
+    severity: medium
+    finding: "缺少数据库索引优化"
+    suggested_action: "实施review-performance-optimization.sql中的索引建议"
+    suggested_owner: "dev"
+
+quality_score: 60
+expires: "2025-12-22T15:30:00Z"
+
+evidence:
+  tests_reviewed: 0
+  risks_identified: 3
+  trace:
+    ac_covered: []
+    ac_gaps: [1, 2, 3, 4, 5]
+
+nfr_validation:
+  security: { status: CONCERNS, notes: "需要添加速率限制和XSS防护" }
+  performance: { status: CONCERNS, notes: "需要添加数据库索引" }
+  reliability: { status: PASS, notes: "错误处理完善" }
+  maintainability: { status: PASS, notes: "代码结构清晰" }
+
+recommendations:
+  immediate:
+    - action: "为ReviewStatisticsService添加单元测试"
+      refs: ["apps/api/src/main/java/com/hotel/service/ReviewStatisticsService.java"]
+    - action: "为ReviewController新增端点添加集成测试"
+      refs: ["apps/api/src/main/java/com/hotel/controller/review/ReviewController.java"]
+    - action: "为所有Vue组件添加单元测试"
+      refs: ["apps/web/src/components/business/"]
+  future:
+    - action: "实施数据库索引优化"
+      refs: ["docs/qa/review-performance-optimization.sql"]
+    - action: "添加API速率限制"
+      refs: ["apps/api/src/main/java/com/hotel/controller/review/ReviewController.java"]
+    - action: "优化getHotelStatistics方法长度"
+      refs: ["apps/api/src/main/java/com/hotel/service/ReviewStatisticsService.java:28-72"]

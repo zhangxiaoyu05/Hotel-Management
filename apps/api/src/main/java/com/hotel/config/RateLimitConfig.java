@@ -93,4 +93,34 @@ public class RateLimitConfig {
 
         return RateLimiterRegistry.of(config).rateLimiter("notificationAPI");
     }
+
+    /**
+     * 评价查询API限流配置
+     * 每秒最多50个请求（防止频繁查询）
+     */
+    @Bean("reviewQueryRateLimiter")
+    public RateLimiter reviewQueryRateLimiter() {
+        RateLimiterConfig config = RateLimiterConfig.custom()
+                .limitForPeriod(50)
+                .limitRefreshPeriod(Duration.ofSeconds(1))
+                .timeoutDuration(Duration.ofMillis(100))
+                .build();
+
+        return RateLimiterRegistry.of(config).rateLimiter("reviewQueryAPI");
+    }
+
+    /**
+     * 评价统计API限流配置
+     * 每秒最多30个请求（统计计算相对耗时）
+     */
+    @Bean("reviewStatisticsRateLimiter")
+    public RateLimiter reviewStatisticsRateLimiter() {
+        RateLimiterConfig config = RateLimiterConfig.custom()
+                .limitForPeriod(30)
+                .limitRefreshPeriod(Duration.ofSeconds(1))
+                .timeoutDuration(Duration.ofMillis(150))
+                .build();
+
+        return RateLimiterRegistry.of(config).rateLimiter("reviewStatisticsAPI");
+    }
 }
