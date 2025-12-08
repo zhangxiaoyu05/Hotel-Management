@@ -1,0 +1,22 @@
+CREATE TABLE `orders` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `order_number` varchar(50) NOT NULL COMMENT '订单号',
+  `user_id` bigint NOT NULL COMMENT '用户ID',
+  `room_id` bigint NOT NULL COMMENT '房间ID',
+  `check_in_date` date NOT NULL COMMENT '入住日期',
+  `check_out_date` date NOT NULL COMMENT '退房日期',
+  `guest_count` int NOT NULL COMMENT '入住人数',
+  `total_price` decimal(10,2) NOT NULL COMMENT '总价',
+  `status` varchar(20) NOT NULL DEFAULT 'PENDING' COMMENT '订单状态：PENDING-待确认，CONFIRMED-已确认，CANCELLED-已取消，COMPLETED-已完成',
+  `special_requests` text COMMENT '特殊要求',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `deleted` tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除标志：0-未删除，1-已删除',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_order_number` (`order_number`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_room_id` (`room_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_check_in_date` (`check_in_date`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单表';

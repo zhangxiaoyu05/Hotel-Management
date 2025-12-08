@@ -1,0 +1,46 @@
+schema: 1
+story: '3.3'
+story_title: '订单管理'
+gate: PASS
+status_reason: '所有验收标准已满足，代码质量良好，安全性和性能可接受，测试覆盖完整'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-12-07T15:30:00+08:00'
+
+top_issues: []
+waiver: { active: false }
+
+quality_score: 90
+expires: '2025-12-21T15:30:00+08:00'
+
+evidence:
+  tests_reviewed: 15
+  risks_identified: 2
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: '用户身份验证、输入验证、权限控制、状态流转验证和SQL注入防护均已实现'
+  performance:
+    status: PASS
+    notes: '使用了分页机制，退款计算高效，建议添加数据库索引优化'
+  reliability:
+    status: PASS
+    notes: '异常处理完整，事务管理正确，状态流转验证严格'
+  maintainability:
+    status: PASS
+    notes: '代码结构清晰，遵循分层架构，组件设计良好，类型安全'
+
+recommendations:
+  immediate: []
+  future:
+    - action: '优化搜索功能支持酒店名搜索'
+      refs: ['apps/api/src/main/java/com/hotel/service/OrderService.java:274']
+    - action: '将退款规则提取为可配置策略'
+      refs: ['apps/api/src/main/java/com/hotel/service/OrderService.java:454-474']
+    - action: '添加数据库索引优化查询性能'
+      refs: ['order表的status, check_in_date, user_id字段']
+    - action: '优化订单详情查询解决N+1问题'
+      refs: ['apps/api/src/main/java/com/hotel/service/OrderService.java:201-222']

@@ -1,0 +1,64 @@
+schema: 1
+story: "1.5"
+story_title: "Personal Information Management"
+gate: CONCERNS
+status_reason: "实现质量良好但需要安全增强措施和集成测试"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-06T10:30:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "SEC-001"
+    severity: medium
+    finding: "API端点缺少速率限制"
+    suggested_action: "为所有用户档案相关API添加速率限制中间件"
+    suggested_owner: "dev"
+  - id: "SEC-002"
+    severity: medium
+    finding: "文件上传缺少病毒扫描"
+    suggested_action: "集成ClamAV或类似解决方案进行文件安全扫描"
+    suggested_owner: "dev"
+  - id: "TEST-001"
+    severity: medium
+    finding: "缺少完整的集成测试覆盖"
+    suggested_action: "添加端到端的用户档案管理集成测试"
+    suggested_owner: "dev"
+
+quality_score: 70
+expires: "2025-12-20T10:30:00Z"
+
+evidence:
+  tests_reviewed: 12
+  risks_identified: 5
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: "文件上传安全性已改进但仍需速率限制和病毒扫描"
+  performance:
+    status: PASS
+    notes: "API响应时间符合要求，图片上传有优化"
+  reliability:
+    status: PASS
+    notes: "错误处理完善，系统稳定性良好"
+  maintainability:
+    status: PASS
+    notes: "代码结构清晰，遵循架构规范"
+
+recommendations:
+  immediate:
+    - action: "为用户档案API添加速率限制"
+      refs: ["apps/api/src/main/java/com/hotel/controller/auth/UserController.java"]
+    - action: "实现文件上传病毒扫描"
+      refs: ["apps/api/src/main/java/com/hotel/service/FileService.java"]
+    - action: "添加密码修改操作审计日志"
+      refs: ["apps/api/src/main/java/com/hotel/service/UserService.java"]
+  future:
+    - action: "考虑为用户档案数据添加Redis缓存"
+      refs: ["apps/api/src/main/java/com/hotel/service/UserService.java"]
+    - action: "实现更细粒度的文件上传权限控制"
+      refs: ["apps/api/src/main/java/com/hotel/controller/FileController.java"]
