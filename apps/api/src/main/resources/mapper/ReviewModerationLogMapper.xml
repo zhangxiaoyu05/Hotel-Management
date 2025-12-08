@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hotel.repository.ReviewModerationLogRepository">
+
+    <!-- 统计审核日志数量（带筛选条件） -->
+    <select id="countLogsByFilters" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM review_moderation_logs
+        WHERE 1=1
+        <if test="reviewId != null">
+            AND review_id = #{reviewId}
+        </if>
+        <if test="adminId != null">
+            AND admin_id = #{adminId}
+        </if>
+        <if test="action != null and action != ''">
+            AND action = #{action}
+        </if>
+        <if test="startDate != null">
+            AND created_at &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND created_at &lt;= #{endDate}
+        </if>
+    </select>
+
+    <!-- 分页查询审核日志（带筛选条件） -->
+    <select id="findLogsWithFilters" resultType="com.hotel.entity.ReviewModerationLog">
+        SELECT * FROM review_moderation_logs
+        WHERE 1=1
+        <if test="reviewId != null">
+            AND review_id = #{reviewId}
+        </if>
+        <if test="adminId != null">
+            AND admin_id = #{adminId}
+        </if>
+        <if test="action != null and action != ''">
+            AND action = #{action}
+        </if>
+        <if test="startDate != null">
+            AND created_at &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND created_at &lt;= #{endDate}
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+</mapper>

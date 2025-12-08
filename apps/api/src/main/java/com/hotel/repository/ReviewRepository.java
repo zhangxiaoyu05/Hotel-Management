@@ -1,154 +1,156 @@
 package com.hotel.repository;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hotel.entity.Review;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 
-@Repository
-public interface ReviewRepository extends JpaRepository<Review, Long> {
+@Mapper
+public interface ReviewRepository extends BaseMapper<Review> {
 
-    Optional<Review> findByOrderIdAndUserId(Long orderId, Long userId);
+    /**
+     * 根据订单ID和用户ID查找评价
+     */
+    @Select("SELECT * FROM reviews WHERE order_id = #{orderId} AND user_id = #{userId}")
+    Review findByOrderIdAndUserId(@Param("orderId") Long orderId, @Param("userId") Long userId);
 
-    List<Review> findByUserIdOrderByCreatedAtDesc(Long userId);
+    /**
+     * 根据用户ID查找评价，按创建时间倒序
+     */
+    @Select("SELECT * FROM reviews WHERE user_id = #{userId} ORDER BY created_at DESC")
+    List<Review> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId);
 
-    @Query("SELECT r FROM Review r WHERE r.hotelId = :hotelId AND r.status = 'APPROVED' ORDER BY r.createdAt DESC")
+    /**
+     * 查找指定酒店的已审核评价
+     */
+    @Select("SELECT * FROM reviews WHERE hotel_id = #{hotelId} AND status = 'APPROVED' ORDER BY created_at DESC")
     List<Review> findByHotelIdAndApprovedStatus(@Param("hotelId") Long hotelId);
 
-    boolean existsByOrderIdAndUserId(Long orderId, Long userId);
+    /**
+     * 检查是否存在评价
+     */
+    @Select("SELECT COUNT(*) > 0 FROM reviews WHERE order_id = #{orderId} AND user_id = #{userId}")
+    boolean existsByOrderIdAndUserId(@Param("orderId") Long orderId, @Param("userId") Long userId);
 
-    @Query("SELECT r FROM Review r WHERE " +
-           "(:hotelId IS NULL OR r.hotelId = :hotelId) AND " +
-           "(:roomId IS NULL OR r.roomId = :roomId) AND " +
-           "(:minRating IS NULL OR r.overallRating >= :minRating) AND " +
-           "(:maxRating IS NULL OR r.overallRating <= :maxRating) AND " +
-           "(:hasImages IS NULL OR (:hasImages = true AND r.images IS NOT NULL AND r.images != '') OR (:hasImages = false AND (r.images IS NULL OR r.images = ''))) AND " +
-           "r.status = 'APPROVED'")
-    Page<Review> findReviewsWithFilters(@Param("hotelId") Long hotelId,
-                                       @Param("roomId") Long roomId,
-                                       @Param("minRating") Integer minRating,
-                                       @Param("maxRating") Integer maxRating,
-                                       @Param("hasImages") Boolean hasImages,
-                                       Pageable pageable);
+    /**
+     * 分页查询评价（带筛选条件）
+     */
+    IPage<Review> findReviewsWithFilters(
+            Page<Review> page,
+            @Param("hotelId") Long hotelId,
+            @Param("roomId") Long roomId,
+            @Param("minRating") Integer minRating,
+            @Param("maxRating") Integer maxRating,
+            @Param("hasImages") Boolean hasImages
+    );
 
-    @Query("SELECT COUNT(r) FROM Review r WHERE " +
-           "r.hotelId = :hotelId AND " +
-           "(:minRating IS NULL OR r.overallRating >= :minRating) AND " +
-           "(:maxRating IS NULL OR r.overallRating <= :maxRating) AND " +
-           "(:hasImages IS NULL OR (:hasImages = true AND r.images IS NOT NULL AND r.images != '') OR (:hasImages = false AND (r.images IS NULL OR r.images = ''))) AND " +
-           "r.status = 'APPROVED'")
-    Long countReviewsWithFilters(@Param("hotelId") Long hotelId,
-                                @Param("minRating") Integer minRating,
-                                @Param("maxRating") Integer maxRating,
-                                @Param("hasImages") Boolean hasImages);
+    /**
+     * 统计评价数量（带筛选条件）
+     */
+    Long countReviewsWithFilters(
+            @Param("hotelId") Long hotelId,
+            @Param("roomId") Long roomId,
+            @Param("minRating") Integer minRating,
+            @Param("maxRating") Integer maxRating,
+            @Param("hasImages") Boolean hasImages
+    );
 
-    @Query("SELECT r FROM Review r WHERE " +
-           "r.hotelId = :hotelId AND " +
-           "r.status = 'APPROVED' AND " +
-           "r.createdAt >= :startDate")
-    List<Review> findRecentReviewsByHotelId(@Param("hotelId") Long hotelId,
-                                           @Param("startDate") LocalDateTime startDate);
+    /**
+     * 查找酒店最近评价
+     */
+    @Select("SELECT * FROM reviews WHERE hotel_id = #{hotelId} AND status = 'APPROVED' AND created_at >= #{startDate}")
+    List<Review> findRecentReviewsByHotelId(@Param("hotelId") Long hotelId, @Param("startDate") LocalDateTime startDate);
 
-    @Query("SELECT r FROM Review r WHERE " +
-           "r.hotelId = :hotelId AND " +
-           "r.status = 'APPROVED' AND " +
-           "r.images IS NOT NULL AND r.images != ''")
+    /**
+     * 查找酒店带图片的评价
+     */
+    @Select("SELECT * FROM reviews WHERE hotel_id = #{hotelId} AND status = 'APPROVED' AND images IS NOT NULL AND images != ''")
     List<Review> findReviewsWithImagesByHotelId(@Param("hotelId") Long hotelId);
 
     // 管理功能查询方法
-    @Query("SELECT r FROM Review r WHERE " +
-           "(:status IS NULL OR r.status = :status) AND " +
-           "(:hotelId IS NULL OR r.hotelId = :hotelId) AND " +
-           "(:userId IS NULL OR r.userId = :userId) AND " +
-           "(:startDate IS NULL OR r.createdAt >= :startDate) AND " +
-           "(:endDate IS NULL OR r.createdAt <= :endDate)")
-    Page<Review> findReviewsForManagement(@Param("status") String status,
-                                         @Param("hotelId") Long hotelId,
-                                         @Param("userId") Long userId,
-                                         @Param("startDate") LocalDateTime startDate,
-                                         @Param("endDate") LocalDateTime endDate,
-                                         Pageable pageable);
+    /**
+     * 分页查询管理评价
+     */
+    IPage<Review> findReviewsForManagement(
+            Page<Review> page,
+            @Param("status") String status,
+            @Param("hotelId") Long hotelId,
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
 
-    @Query("SELECT r FROM Review r WHERE r.status = 'PENDING'")
+    /**
+     * 查找待审核评价
+     */
+    @Select("SELECT * FROM reviews WHERE status = 'PENDING'")
     List<Review> findPendingReviews();
 
-    @Query("SELECT COUNT(r) FROM Review r WHERE r.status = :status")
+    /**
+     * 统计指定状态的评价数量
+     */
+    @Select("SELECT COUNT(*) FROM reviews WHERE status = #{status}")
     Long countByStatus(@Param("status") String status);
 
-    @Query("SELECT r FROM Review r WHERE " +
-           "r.hotelId = :hotelId AND " +
-           "r.status = :status")
-    List<Review> findByHotelIdAndStatus(@Param("hotelId") Long hotelId,
-                                       @Param("status") String status);
+    /**
+     * 查找酒店和状态指定的评价
+     */
+    @Select("SELECT * FROM reviews WHERE hotel_id = #{hotelId} AND status = #{status}")
+    List<Review> findByHotelIdAndStatus(@Param("hotelId") Long hotelId, @Param("status") String status);
 
-    @Query("SELECT r FROM Review r WHERE " +
-           "r.userId = :userId AND " +
-           "r.status = :status")
-    List<Review> findByUserIdAndStatus(@Param("userId") Long userId,
-                                      @Param("status") String status);
+    /**
+     * 查找用户和状态指定的评价
+     */
+    @Select("SELECT * FROM reviews WHERE user_id = #{userId} AND status = #{status}")
+    List<Review> findByUserIdAndStatus(@Param("userId") Long userId, @Param("status") String status);
 
     // 统计分析相关查询方法
-    @Query("SELECT AVG(r.overallRating), AVG(r.cleanlinessRating), " +
-           "AVG(r.serviceRating), AVG(r.facilitiesRating), AVG(r.locationRating) " +
-           "FROM Review r WHERE " +
-           "(:hotelId IS NULL OR r.hotelId = :hotelId) AND " +
-           "r.status = 'APPROVED'")
+    /**
+     * 获取平均评分统计
+     */
+    @Select("SELECT AVG(overall_rating), AVG(cleanliness_rating), AVG(service_rating), AVG(facilities_rating), AVG(location_rating) " +
+            "FROM reviews WHERE (#{hotelId} IS NULL OR hotel_id = #{hotelId}) AND status = 'APPROVED'")
     Object[] getAverageRatingStatistics(@Param("hotelId") Long hotelId);
 
-    @Query("SELECT r.overallRating, COUNT(r) " +
-           "FROM Review r WHERE " +
-           "(:hotelId IS NULL OR r.hotelId = :hotelId) AND " +
-           "r.status = 'APPROVED' " +
-           "GROUP BY r.overallRating")
+    /**
+     * 获取评分分布（原始数据）
+     */
+    @Select("SELECT overall_rating, COUNT(*) FROM reviews WHERE (#{hotelId} IS NULL OR hotel_id = #{hotelId}) AND status = 'APPROVED' GROUP BY overall_rating")
     List<Object[]> getRatingDistributionRaw(@Param("hotelId") Long hotelId);
 
     // 按日期分组统计评价数量
-    @Query(value = "SELECT DATE(r.created_at) as date, COUNT(*) as count " +
-                   "FROM reviews r WHERE " +
-                   "(:hotelId IS NULL OR r.hotel_id = :hotelId) AND " +
-                   "r.created_at BETWEEN :startDate AND :endDate " +
-                   "GROUP BY DATE(r.created_at) " +
-                   "ORDER BY date", nativeQuery = true)
+    @Select("SELECT DATE(created_at) as date, COUNT(*) as count " +
+            "FROM reviews WHERE (#{hotelId} IS NULL OR hotel_id = #{hotelId}) AND " +
+            "created_at BETWEEN #{startDate} AND #{endDate} " +
+            "GROUP BY DATE(created_at) ORDER BY date")
     List<Object[]> getReviewCountByDate(@Param("hotelId") Long hotelId,
                                       @Param("startDate") LocalDateTime startDate,
                                       @Param("endDate") LocalDateTime endDate);
 
     // 按日期统计平均评分
-    @Query(value = "SELECT DATE(r.created_at) as date, AVG(r.overall_rating) as avgRating " +
-                   "FROM reviews r WHERE " +
-                   "(:hotelId IS NULL OR r.hotel_id = :hotelId) AND " +
-                   "r.status = 'APPROVED' AND " +
-                   "r.created_at BETWEEN :startDate AND :endDate " +
-                   "GROUP BY DATE(r.created_at) " +
-                   "ORDER BY date", nativeQuery = true)
+    @Select("SELECT DATE(created_at) as date, AVG(overall_rating) as avgRating " +
+            "FROM reviews WHERE (#{hotelId} IS NULL OR hotel_id = #{hotelId}) AND " +
+            "status = 'APPROVED' AND created_at BETWEEN #{startDate} AND #{endDate} " +
+            "GROUP BY DATE(created_at) ORDER BY date")
     List<Object[]> getRatingByDate(@Param("hotelId") Long hotelId,
                                  @Param("startDate") LocalDateTime startDate,
                                  @Param("endDate") LocalDateTime endDate);
 
-    // 按日期统计评价状态变化
-    @Query(value = "SELECT DATE(l.created_at) as date, " +
-                   "SUM(CASE WHEN l.new_status = 'APPROVED' THEN 1 ELSE 0 END) as approved, " +
-                   "SUM(CASE WHEN l.new_status = 'REJECTED' THEN 1 ELSE 0 END) as rejected, " +
-                   "SUM(CASE WHEN l.new_status = 'PENDING' THEN 1 ELSE 0 END) as pending " +
-                   "FROM review_moderation_logs l " +
-                   "WHERE l.created_at BETWEEN :startDate AND :endDate " +
-                   "GROUP BY DATE(l.created_at) " +
-                   "ORDER BY date", nativeQuery = true)
-    List<Object[]> getStatusTrendsByDate(@Param("startDate") LocalDateTime startDate,
-                                        @Param("endDate") LocalDateTime endDate);
-
-    @Query("SELECT r.overallRating, COUNT(r) " +
-           "FROM Review r WHERE " +
-           "(:hotelId IS NULL OR r.hotelId = :hotelId) AND " +
-           "r.status = 'APPROVED' " +
-           "GROUP BY r.overallRating " +
-           "ORDER BY r.overallRating")
+    /**
+     * 获取评分分布
+     */
+    @Select("SELECT overall_rating, COUNT(*) FROM reviews WHERE (#{hotelId} IS NULL OR hotel_id = #{hotelId}) AND status = 'APPROVED' GROUP BY overall_rating ORDER BY overall_rating")
     Map<Integer, Long> getRatingDistribution(@Param("hotelId") Long hotelId);
+
+    /**
+     * 根据评价ID列表和酒店ID列表查找评价
+     */
+    List<Review> findReviewIdsByHotelIdsAndIds(@Param("hotelIds") List<Long> hotelIds, @Param("reviewIds") List<Long> reviewIds);
 }

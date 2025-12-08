@@ -3,12 +3,12 @@ package com.hotel.service;
 import com.hotel.dto.review.admin.ReviewReplyRequest;
 import com.hotel.entity.Review;
 import com.hotel.entity.ReviewReply;
-import com.hotel.repository.ReplyRepository;
+import com.hotel.repository.ReviewReplyRepository;
 import com.hotel.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,8 +26,10 @@ public class ReviewReplyService {
 
     @Transactional
     public ReviewReply createReply(Long reviewId, ReviewReplyRequest request, Long adminId) {
-        Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new RuntimeException("评价不存在: " + reviewId));
+        Review review = reviewRepository.selectById(reviewId);
+        if (review == null) {
+            throw new RuntimeException("评价不存在: " + reviewId);
+        }
 
         if (!"APPROVED".equals(review.getStatus())) {
             throw new RuntimeException("只能回复已审核通过的评价");
@@ -39,7 +41,8 @@ public class ReviewReplyService {
         reply.setContent(sanitizeContent(request.getContent()));
         reply.setStatus(request.getStatus());
 
-        ReviewReply savedReply = reviewReplyRepository.save(reply);
+        reviewReplyRepository.insert(reply);
+        ReviewReply savedReply = reply;
 
         if ("PUBLISHED".equals(request.getStatus())) {
             sendReplyNotification(review, reply);
@@ -52,8 +55,10 @@ public class ReviewReplyService {
 
     @Transactional
     public ReviewReply updateReply(Long reviewId, Long replyId, ReviewReplyRequest request, Long adminId) {
-        ReviewReply reply = reviewReplyRepository.findById(replyId)
-                .orElseThrow(() -> new RuntimeException("回复不存在: " + replyId));
+        ReviewReply reply = reviewReplyRepository.selectById(replyId);
+        if (reply == null) {
+            throw new RuntimeException("回复不存在: " + replyId);
+        }
 
         if (!reply.getReviewId().equals(reviewId)) {
             throw new RuntimeException("回复不属于指定评价");
@@ -62,10 +67,11 @@ public class ReviewReplyService {
         reply.setContent(sanitizeContent(request.getContent()));
         reply.setStatus(request.getStatus());
 
-        ReviewReply updatedReply = reviewReplyRepository.save(reply);
+        reviewReplyRepository.updateById(reply);
+        ReviewReply updatedReply = reply;
 
         if ("PUBLISHED".equals(request.getStatus()) && !"PUBLISHED".equals(reply.getStatus())) {
-            sendReplyNotification(reviewRepository.findById(reviewId).get(), updatedReply);
+            sendReplyNotification(reviewRepository.selectById(reviewId), updatedReply);
         }
 
         log.info("管理员 {} 更新了评价 {} 的回复 {}", adminId, reviewId, replyId);
@@ -77,17 +83,19 @@ public class ReviewReplyService {
         return reviewReplyRepository.findByReviewIdOrderByCreatedAtDesc(reviewId);
     }
 
-    public Page<ReviewReply> getAllReplies(String status, Long adminId,
+    public IPage<ReviewReply> getAllReplies(String status, Long adminId,
                                          LocalDateTime startDate, LocalDateTime endDate,
-                                         Pageable pageable) {
+                                         Page<ReviewReply> pageable) {
         return reviewReplyRepository.findRepliesWithFilters(
-                status, adminId, startDate, endDate, pageable);
+                pageable, status, adminId, startDate, endDate);
     }
 
     @Transactional
     public void deleteReply(Long reviewId, Long replyId, Long adminId) {
-        ReviewReply reply = reviewReplyRepository.findById(replyId)
-                .orElseThrow(() -> new RuntimeException("回复不存在: " + replyId));
+        ReviewReply reply = reviewReplyRepository.selectById(replyId);
+        if (reply == null) {
+            throw new RuntimeException("回复不存在: " + replyId);
+        }
 
         if (!reply.getReviewId().equals(reviewId)) {
             throw new RuntimeException("回复不属于指定评价");

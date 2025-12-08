@@ -99,14 +99,7 @@ public class HotelPermissionService {
      */
     private boolean isSuperAdmin(Long adminId) {
         try {
-            User user = userRepository.selectById(adminId);
-            if (user == null) {
-                return false;
-            }
-
-            // 检查用户角色是否包含SUPER_ADMIN
-            String roles = user.getRoles();
-            return roles != null && roles.contains("SUPER_ADMIN");
+            return userRepository.hasRole(adminId, "SUPER_ADMIN");
         } catch (Exception e) {
             log.error("检查超级管理员权限失败", e);
             return false;

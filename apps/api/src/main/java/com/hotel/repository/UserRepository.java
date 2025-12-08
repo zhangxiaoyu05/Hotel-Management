@@ -14,6 +14,12 @@ import java.util.Optional;
 public interface UserRepository extends BaseMapper<User> {
 
     /**
+     * 检查用户是否具有指定角色
+     */
+    @Select("SELECT COUNT(*) > 0 FROM users WHERE id = #{userId} AND roles LIKE CONCAT('%', #{role}, '%')")
+    boolean hasRole(@Param("userId") Long userId, @Param("role") String role);
+
+    /**
      * 根据用户名查找用户
      */
     @Select("SELECT * FROM users WHERE username = #{username} AND deleted = 0")

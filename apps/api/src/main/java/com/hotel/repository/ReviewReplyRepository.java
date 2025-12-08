@@ -1,37 +1,46 @@
 package com.hotel.repository;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hotel.entity.ReviewReply;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-@Repository
-public interface ReviewReplyRepository extends JpaRepository<ReviewReply, Long> {
+@Mapper
+public interface ReviewReplyRepository extends BaseMapper<ReviewReply> {
 
-    List<ReviewReply> findByReviewIdOrderByCreatedAtDesc(Long reviewId);
+    /**
+     * 根据评价ID查找回复，按创建时间倒序
+     */
+    @Select("SELECT * FROM review_replies WHERE review_id = #{reviewId} ORDER BY created_at DESC")
+    List<ReviewReply> findByReviewIdOrderByCreatedAtDesc(@Param("reviewId") Long reviewId);
 
-    Optional<ReviewReply> findByReviewIdAndStatus(Long reviewId, String status);
+    /**
+     * 根据评价ID和状态查找回复
+     */
+    @Select("SELECT * FROM review_replies WHERE review_id = #{reviewId} AND status = #{status} LIMIT 1")
+    Optional<ReviewReply> findByReviewIdAndStatus(@Param("reviewId") Long reviewId, @Param("status") String status);
 
-    @Query("SELECT COUNT(r) FROM ReviewReply r WHERE " +
-           "(:status IS NULL OR r.status = :status) AND " +
-           "(:adminId IS NULL OR r.adminId = :adminId)")
+    /**
+     * 统计回复数量（带筛选条件）
+     */
     Long countRepliesByFilters(@Param("status") String status,
                               @Param("adminId") Long adminId);
 
-    @Query("SELECT r FROM ReviewReply r WHERE " +
-           "(:status IS NULL OR r.status = :status) AND " +
-           "(:adminId IS NULL OR r.adminId = :adminId) AND " +
-           "(:startDate IS NULL OR r.createdAt >= :startDate) AND " +
-           "(:endDate IS NULL OR r.createdAt <= :endDate)")
-    Page<ReviewReply> findRepliesWithFilters(@Param("status") String status,
-                                           @Param("adminId") Long adminId,
-                                           @Param("startDate") java.time.LocalDateTime startDate,
-                                           @Param("endDate") java.time.LocalDateTime endDate,
-                                           Pageable pageable);
+    /**
+     * 分页查询回复（带筛选条件）
+     */
+    IPage<ReviewReply> findRepliesWithFilters(
+            Page<ReviewReply> page,
+            @Param("status") String status,
+            @Param("adminId") Long adminId,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
 }

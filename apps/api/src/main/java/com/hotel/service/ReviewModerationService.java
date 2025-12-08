@@ -6,10 +6,11 @@ import com.hotel.entity.Review;
 import com.hotel.entity.ReviewModerationLog;
 import com.hotel.repository.ReviewModerationLogRepository;
 import com.hotel.repository.ReviewRepository;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,14 +30,16 @@ public class ReviewModerationService {
 
     @Transactional
     public Review moderateReview(Long reviewId, ReviewModerationRequest request, Long adminId) {
-        Review review = reviewRepository.findById(reviewId)
-                .orElseThrow(() -> new RuntimeException("评价不存在: " + reviewId));
+        Review review = reviewRepository.selectById(reviewId);
+        if (review == null) {
+            throw new RuntimeException("评价不存在: " + reviewId);
+        }
 
         String oldStatus = review.getStatus();
         String newStatus = determineNewStatus(request.getAction(), oldStatus);
 
         review.setStatus(newStatus);
-        reviewRepository.save(review);
+        reviewRepository.updateById(review);
 
         // 记录审核日志
         ReviewModerationLog log = new ReviewModerationLog();
@@ -47,7 +50,7 @@ public class ReviewModerationService {
         log.setOldStatus(oldStatus);
         log.setNewStatus(newStatus);
         log.setCreatedAt(LocalDateTime.now());
-        moderationLogRepository.save(log);
+        moderationLogRepository.insert(log);
 
         // 发送通知（如果需要）
         if ("APPROVED".equals(newStatus) || "REJECTED".equals(newStatus)) {
@@ -62,7 +65,7 @@ public class ReviewModerationService {
 
     @Transactional(rollbackFor = Exception.class)
     public List<Review> batchModerateReviews(BatchModerationRequest request, Long adminId) {
-        List<Review> reviews = reviewRepository.findAllById(request.getReviewIds());
+        List<Review> reviews = reviewRepository.selectBatchIds(request.getReviewIds());
 
         if (reviews.size() != request.getReviewIds().size()) {
             throw new RuntimeException("部分评价不存在");
@@ -91,11 +94,16 @@ public class ReviewModerationService {
             logs.add(log);
         }
 
-        // 批量保存评价
-        List<Review> savedReviews = reviewRepository.saveAll(updatedReviews);
+        // 批量更新评价
+        for (Review review : updatedReviews) {
+            reviewRepository.updateById(review);
+        }
+        List<Review> savedReviews = updatedReviews;
 
         // 批量保存日志
-        moderationLogRepository.saveAll(logs);
+        for (ReviewModerationLog log : logs) {
+            moderationLogRepository.insert(log);
+        }
 
         // 发送通知（异步处理，不影响事务）
         for (int i = 0; i < savedReviews.size(); i++) {
@@ -115,11 +123,11 @@ public class ReviewModerationService {
         return savedReviews;
     }
 
-    public Page<ReviewModerationLog> getModerationLogs(Long reviewId, Long adminId,
+    public IPage<ReviewModerationLog> getModerationLogs(Long reviewId, Long adminId,
                                                       String action, LocalDateTime startDate,
-                                                      LocalDateTime endDate, Pageable pageable) {
+                                                      LocalDateTime endDate, Page<ReviewModerationLog> pageable) {
         return moderationLogRepository.findLogsWithFilters(
-                reviewId, adminId, action, startDate, endDate, pageable);
+                pageable, reviewId, adminId, action, startDate, endDate);
     }
 
     public List<Review> getPendingReviews() {

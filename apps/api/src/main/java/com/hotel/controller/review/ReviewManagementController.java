@@ -14,10 +14,8 @@ import com.hotel.service.HotelPermissionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -126,13 +124,12 @@ public class ReviewManagementController extends BaseController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
 
-        Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ?
-                                   Sort.Direction.DESC : Sort.Direction.ASC;
-        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortBy));
+        // 创建分页对象
+        Page<Review> pageable = new Page<>(page, size);
 
         // 调用实际的查询方法
-        Page<Review> reviews = reviewRepository.findReviewsForManagement(
-            status, hotelId, userId, startDate, endDate, pageable);
+        IPage<Review> reviews = reviewRepository.findReviewsForManagement(
+            pageable, status, hotelId, userId, startDate, endDate);
         return ResponseEntity.ok(ApiResponse.success("获取管理评价列表成功", reviews));
     }
 
@@ -201,8 +198,8 @@ public class ReviewManagementController extends BaseController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<ReviewReply> replies = reviewReplyService.getAllReplies(
+        Page<ReviewReply> pageable = new Page<>(page, size);
+        IPage<ReviewReply> replies = reviewReplyService.getAllReplies(
                 status, adminId, startDate, endDate, pageable);
         return ResponseEntity.ok(ApiResponse.success("获取回复列表成功", replies));
     }
@@ -212,10 +209,10 @@ public class ReviewManagementController extends BaseController {
     public ResponseEntity<ApiResponse<List<ReviewModerationLog>>> getModerationLogs(
             @PathVariable Long id) {
         Long adminId = getCurrentUserId();
-        Pageable pageable = PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<ReviewModerationLog> logs = reviewModerationService.getModerationLogs(
+        Page<ReviewModerationLog> pageable = new Page<>(0, 100);
+        IPage<ReviewModerationLog> logs = reviewModerationService.getModerationLogs(
                 id, null, null, null, null, pageable);
-        return ResponseEntity.ok(ApiResponse.success("获取审核日志成功", logs.getContent()));
+        return ResponseEntity.ok(ApiResponse.success("获取审核日志成功", logs.getRecords()));
     }
 
     @Operation(summary = "获取管理员的审核日志")
@@ -229,8 +226,8 @@ public class ReviewManagementController extends BaseController {
             @RequestParam(defaultValue = "20") int size) {
 
         Long adminId = getCurrentUserId();
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<ReviewModerationLog> logs = reviewModerationService.getModerationLogs(
+        Page<ReviewModerationLog> pageable = new Page<>(page, size);
+        IPage<ReviewModerationLog> logs = reviewModerationService.getModerationLogs(
                 reviewId, adminId, action, startDate, endDate, pageable);
         return ResponseEntity.ok(ApiResponse.success("获取审核日志成功", logs));
     }
