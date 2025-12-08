@@ -69,6 +69,54 @@ export interface ReviewStatisticsResponse {
   averageCommentLength: number
 }
 
+// 管理功能相关接口
+export interface ReviewModerationRequest {
+  action: 'APPROVE' | 'REJECT' | 'MARK' | 'HIDE' | 'DELETE'
+  reason: string
+}
+
+export interface ReviewReplyRequest {
+  content: string
+  status: 'DRAFT' | 'PUBLISHED'
+}
+
+export interface BatchModerationRequest {
+  reviewIds: number[]
+  action: 'APPROVE' | 'REJECT' | 'HIDE'
+  reason: string
+}
+
+export interface ReviewAnalyticsRequest {
+  startDate?: string
+  endDate?: string
+  hotelId?: number
+  groupBy?: 'day' | 'week' | 'month'
+  metricType?: 'count' | 'rating' | 'status'
+}
+
+export interface ReviewReplyResponse {
+  id: number
+  reviewId: number
+  adminId: number
+  adminName: string
+  content: string
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ReviewModerationLogResponse {
+  id: number
+  reviewId: number
+  adminId: number
+  adminName: string
+  action: string
+  reason: string
+  oldStatus: string
+  newStatus: string
+  createdAt: string
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data: T
@@ -415,6 +463,296 @@ class ReviewService {
       return response.data
     } catch (error: any) {
       console.error('获取批量统计失败:', error)
+      throw error
+    }
+  }
+
+  // ========== 管理功能 API ==========
+
+  /**
+   * 审核单个评价
+   */
+  async moderateReview(reviewId: number, request: ReviewModerationRequest): Promise<ApiResponse<ReviewResponse>> {
+    try {
+      const response = await apiClient.put(`/v1/admin/reviews/${reviewId}/moderate`, request)
+      return response.data
+    } catch (error: any) {
+      console.error('审核评价失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 批量审核评价
+   */
+  async batchModerateReviews(request: BatchModerationRequest): Promise<ApiResponse<ReviewResponse[]>> {
+    try {
+      const response = await apiClient.put('/v1/admin/reviews/batch-moderate', request)
+      return response.data
+    } catch (error: any) {
+      console.error('批量审核失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取待审核评价列表
+   */
+  async getPendingReviews(): Promise<ApiResponse<ReviewResponse[]>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews/pending')
+      return response.data
+    } catch (error: any) {
+      console.error('获取待审核评价失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取管理评价列表（支持筛选）
+   */
+  async getReviewsForManagement(params: {
+    status?: string
+    hotelId?: number
+    userId?: number
+    startDate?: string
+    endDate?: string
+    page?: number
+    size?: number
+    sortBy?: string
+    sortDir?: string
+  }): Promise<ApiResponse<{
+    content: ReviewResponse[]
+    totalElements: number
+    totalPages: number
+    size: number
+    number: number
+  }>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews', { params })
+      return response.data
+    } catch (error: any) {
+      console.error('获取管理评价列表失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 创建评价回复
+   */
+  async createReviewReply(reviewId: number, request: ReviewReplyRequest): Promise<ApiResponse<ReviewReplyResponse>> {
+    try {
+      const response = await apiClient.post(`/v1/admin/reviews/${reviewId}/reply`, request)
+      return response.data
+    } catch (error: any) {
+      console.error('创建回复失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 更新评价回复
+   */
+  async updateReviewReply(reviewId: number, replyId: number, request: ReviewReplyRequest): Promise<ApiResponse<ReviewReplyResponse>> {
+    try {
+      const response = await apiClient.put(`/v1/admin/reviews/${reviewId}/reply/${replyId}`, request)
+      return response.data
+    } catch (error: any) {
+      console.error('更新回复失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 删除评价回复
+   */
+  async deleteReviewReply(reviewId: number, replyId: number): Promise<ApiResponse<void>> {
+    try {
+      const response = await apiClient.delete(`/v1/admin/reviews/${reviewId}/reply/${replyId}`)
+      return response.data
+    } catch (error: any) {
+      console.error('删除回复失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取评价的回复列表
+   */
+  async getReviewReplies(reviewId: number): Promise<ApiResponse<ReviewReplyResponse[]>> {
+    try {
+      const response = await apiClient.get(`/v1/admin/reviews/${reviewId}/replies`)
+      return response.data
+    } catch (error: any) {
+      console.error('获取回复列表失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取所有回复列表（管理员视图）
+   */
+  async getAllReplies(params: {
+    status?: string
+    adminId?: number
+    startDate?: string
+    endDate?: string
+    page?: number
+    size?: number
+  }): Promise<ApiResponse<{
+    content: ReviewReplyResponse[]
+    totalElements: number
+    totalPages: number
+    size: number
+    number: number
+  }>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews/replies', { params })
+      return response.data
+    } catch (error: any) {
+      console.error('获取回复列表失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取审核日志
+   */
+  async getModerationLogs(reviewId: number): Promise<ApiResponse<ReviewModerationLogResponse[]>> {
+    try {
+      const response = await apiClient.get(`/v1/admin/reviews/${reviewId}/moderation-logs`)
+      return response.data
+    } catch (error: any) {
+      console.error('获取审核日志失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取管理员的审核日志
+   */
+  async getModerationLogsForAdmin(params: {
+    reviewId?: number
+    action?: string
+    startDate?: string
+    endDate?: string
+    page?: number
+    size?: number
+  }): Promise<ApiResponse<{
+    content: ReviewModerationLogResponse[]
+    totalElements: number
+    totalPages: number
+    size: number
+    number: number
+  }>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews/moderation-logs', { params })
+      return response.data
+    } catch (error: any) {
+      console.error('获取管理员审核日志失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取评价总体统计数据
+   */
+  async getOverallStatistics(hotelId?: number): Promise<ApiResponse<ReviewStatisticsResponse>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews/analytics/statistics', {
+        params: hotelId ? { hotelId } : {}
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('获取统计数据失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取评价趋势分析数据
+   */
+  async getReviewTrends(request: ReviewAnalyticsRequest): Promise<ApiResponse<{
+    countTrends: Array<{ date: string; count: number }>
+    ratingTrends: Array<{ date: string; rating: number }>
+    statusTrends: Array<{ date: string; approved: number; rejected: number; pending: number }>
+  }>> {
+    try {
+      const response = await apiClient.post('/v1/admin/reviews/analytics/trends', request)
+      return response.data
+    } catch (error: any) {
+      console.error('获取趋势数据失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取评价质量分析数据
+   */
+  async getQualityAnalysis(hotelId?: number): Promise<ApiResponse<{
+    statusCounts: Record<string, number>
+    violationRate: number
+    replyRate: number
+    totalReplies: number
+    averageModerationTime: number
+  }>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews/analytics/quality', {
+        params: hotelId ? { hotelId } : {}
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('获取质量分析数据失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取管理员审核统计数据
+   */
+  async getModerationStatistics(): Promise<ApiResponse<{
+    actionCounts: Record<string, number>
+    totalActions: number
+    recentActions: number
+  }>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews/analytics/moderation-stats')
+      return response.data
+    } catch (error: any) {
+      console.error('获取审核统计数据失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取管理仪表板数据
+   */
+  async getDashboardData(hotelId?: number): Promise<ApiResponse<{
+    statistics: ReviewStatisticsResponse
+    quality: any
+    moderationStats: any
+    trends: any
+  }>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews/analytics/dashboard', {
+        params: hotelId ? { hotelId } : {}
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('获取仪表板数据失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 清空分析缓存
+   */
+  async clearAnalyticsCache(): Promise<ApiResponse<void>> {
+    try {
+      const response = await apiClient.post('/v1/admin/reviews/analytics/clear-cache')
+      return response.data
+    } catch (error: any) {
+      console.error('清空缓存失败:', error)
       throw error
     }
   }
