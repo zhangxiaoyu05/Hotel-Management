@@ -35,6 +35,9 @@ public class ReviewService {
     private final FileService fileService;
     private final ReviewCacheService reviewCacheService;
     private final ReviewStatisticsService reviewStatisticsService;
+    private final ReviewIncentiveService reviewIncentiveService;
+    private final ReviewQualityService reviewQualityService;
+    private final ReviewActivityService reviewActivityService;
 
     // 敏感词列表 - 实际项目中应该从数据库或配置文件加载
     private static final List<String> SENSITIVE_WORDS = Arrays.asList(
@@ -97,10 +100,32 @@ public class ReviewService {
 
         log.info("用户 {} 成功提交订单 {} 的评价", userId, reviewRequest.getOrderId());
 
+        // 触发积分奖励
+        try {
+            reviewIncentiveService.awardPointsForReview(userId, review.getId());
+        } catch (Exception e) {
+            log.error("发放评价积分奖励失败", e);
+        }
+
+        // 触发活动奖励
+        try {
+            reviewActivityService.processReviewActivityRewards(userId, review.getId());
+        } catch (Exception e) {
+            log.error("处理活动奖励失败", e);
+        }
+
+        // 异步进行质量评估和优质标识判定
+        try {
+            reviewQualityService.evaluateReviewQuality(review);
+        } catch (Exception e) {
+            log.error("评价质量评估失败", e);
+        }
+
         // 清除相关缓存
         reviewCacheService.evictHotelReviewsCache(review.getHotelId());
         reviewCacheService.evictUserReviewsCache(userId);
         reviewStatisticsService.evictStatisticsCache(review.getHotelId());
+        reviewQualityService.clearLeaderboardCache();
 
         return ReviewResponse.fromEntity(review);
     }

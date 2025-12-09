@@ -12,6 +12,60 @@ export interface ReviewRequest {
   isAnonymous?: boolean
 }
 
+// 激励系统相关类型定义
+export interface ReviewActivity {
+  id: number
+  title: string
+  description: string
+  activityType: string
+  startDate: string
+  endDate: string
+  status: string
+  rules: Record<string, any>
+  isActive: boolean
+  createdBy: number
+  createdAt: string
+}
+
+export interface LeaderboardEntry {
+  rank: number
+  userId: number
+  userName: string
+  totalReviews: number
+  qualityScore: number
+  totalPoints: number
+  qualityReviews?: number
+}
+
+export interface ReviewLeaderboard {
+  periodType: string
+  period: string
+  updatedAt: string
+  entries: LeaderboardEntry[]
+}
+
+export interface ActivityParticipation {
+  id: number
+  userId: number
+  activityId: number
+  joinedAt: string
+  status: string
+  activitySnapshot?: string
+  rewardPoints?: number
+  rewardAt?: string
+  notes?: string
+}
+
+export interface HighQualityBadge {
+  id: number
+  reviewId: number
+  badgeType: string
+  displayName: string
+  description: string
+  iconUrl: string
+  awardedAt: string
+}
+
 export interface ReviewResponse {
   id: number
   userId: number
@@ -937,6 +991,195 @@ class ReviewService {
       return response.data
     } catch (error: any) {
       console.error('获取统计概览失败:', error)
+      throw error
+    }
+  }
+}
+
+  // ========== 激励系统 API ==========
+
+  /**
+   * 获取活跃活动
+   */
+  async getActiveActivities(active: boolean = true): Promise<ApiResponse<ReviewActivity[]>> {
+    try {
+      const response = await apiClient.get('/v1/reviews/activities', {
+        params: { active }
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('获取活动失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 根据类型获取活动
+   */
+  async getActivitiesByType(activityType: string): Promise<ApiResponse<ReviewActivity[]>> {
+    try {
+      const response = await apiClient.get(`/v1/reviews/activities/type/${activityType}`)
+      return response.data
+    } catch (error: any) {
+      console.error('获取活动失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 参与活动
+   */
+  async joinActivity(activityId: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await apiClient.post(`/v1/reviews/activities/${activityId}/join`)
+      return response.data
+    } catch (error: any) {
+      console.error('参与活动失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取评价排行榜
+   */
+  async getLeaderboard(type: string = 'monthly', period: string): Promise<ApiResponse<ReviewLeaderboard>> {
+    try {
+      const response = await apiClient.get('/v1/reviews/activities/leaderboard', {
+        params: { type, period }
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('获取排行榜失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取评价的优质标识
+   */
+  async getReviewBadge(reviewId: number): Promise<ApiResponse<HighQualityBadge | null>> {
+    try {
+      const response = await apiClient.get(`/v1/reviews/activities/${reviewId}/badge`)
+      return response.data
+    } catch (error: any) {
+      console.error('获取评价标识失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取用户参与记录
+   */
+  async getUserParticipations(): Promise<ApiResponse<ActivityParticipation[]>> {
+    try {
+      const response = await apiClient.get('/v1/reviews/activities/my-participations')
+      return response.data
+    } catch (error: any) {
+      console.error('获取参与记录失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 取消活动参与
+   */
+  async cancelParticipation(activityId: number, reason: string): Promise<ApiResponse<void>> {
+    try {
+      const response = await apiClient.post(`/v1/reviews/activities/${activityId}/cancel`, { reason })
+      return response.data
+    } catch (error: any) {
+      console.error('取消参与失败:', error)
+      throw error
+    }
+  }
+
+  // 管理员活动管理API
+
+  /**
+   * 创建新活动（管理员）
+   */
+  async createActivity(activityData: Partial<ReviewActivity>): Promise<ApiResponse<ReviewActivity>> {
+    try {
+      const response = await apiClient.post('/v1/reviews/activities/admin', activityData)
+      return response.data
+    } catch (error: any) {
+      console.error('创建活动失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 更新活动（管理员）
+   */
+  async updateActivity(activityId: number, activityData: Partial<ReviewActivity>): Promise<ApiResponse<ReviewActivity>> {
+    try {
+      const response = await apiClient.put(`/v1/reviews/activities/admin/${activityId}`, activityData)
+      return response.data
+    } catch (error: any) {
+      console.error('更新活动失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 删除活动（管理员）
+   */
+  async deleteActivity(activityId: number): Promise<ApiResponse<string>> {
+    try {
+      const response = await apiClient.delete(`/v1/reviews/activities/admin/${activityId}`)
+      return response.data
+    } catch (error: any) {
+      console.error('删除活动失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 清除排行榜缓存（管理员）
+   */
+  async clearLeaderboardCache(): Promise<ApiResponse<string>> {
+    try {
+      const response = await apiClient.post('/v1/reviews/activities/admin/clear-cache')
+      return response.data
+    } catch (error: any) {
+      console.error('清除缓存失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取用户积分汇总
+   */
+  async getUserPointsSummary(): Promise<ApiResponse<{
+    userId: number
+    totalPoints: number
+    earnedThisMonth: number
+    recentHistory: any[]
+  }>> {
+    try {
+      const response = await apiClient.get('/v1/users/me/points')
+      return response.data
+    } catch (error: any) {
+      console.error('获取积分汇总失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取用户积分历史
+   */
+  async getUserPointsHistory(page: number = 0, size: number = 20): Promise<ApiResponse<{
+    content: any[]
+    totalElements: number
+    totalPages: number
+  }>> {
+    try {
+      const response = await apiClient.get('/v1/users/me/points/history', {
+        params: { page, size }
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('获取积分历史失败:', error)
       throw error
     }
   }
