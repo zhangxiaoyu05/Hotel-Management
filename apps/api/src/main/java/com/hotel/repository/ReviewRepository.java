@@ -153,4 +153,39 @@ public interface ReviewRepository extends BaseMapper<Review> {
      * 根据评价ID列表和酒店ID列表查找评价
      */
     List<Review> findReviewIdsByHotelIdsAndIds(@Param("hotelIds") List<Long> hotelIds, @Param("reviewIds") List<Long> reviewIds);
+
+    /**
+     * 根据酒店ID、状态和创建时间范围查找评价
+     */
+    @Select("SELECT * FROM reviews WHERE hotel_id = #{hotelId} AND status = #{status} AND " +
+            "created_at BETWEEN #{startDate} AND #{endDate} ORDER BY created_at DESC")
+    List<Review> findByHotelIdAndStatusAndCreatedAtBetween(
+            @Param("hotelId") Long hotelId,
+            @Param("status") String status,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
+     * 获取酒店评价文本用于词云分析
+     * 注意：为了简化，这里返回评论文本，在应用层进行分词处理
+     */
+    @Select("SELECT comment FROM reviews " +
+            "WHERE hotel_id = #{hotelId} AND status = #{status} " +
+            "  AND comment IS NOT NULL AND comment != '' " +
+            "LIMIT #{limit}")
+    List<String> findCommentsForWordCloud(
+            @Param("hotelId") Long hotelId,
+            @Param("status") String status,
+            @Param("limit") Integer limit
+    );
+
+    /**
+     * 获取评价总数
+     */
+    @Select("SELECT COUNT(*) FROM reviews WHERE hotel_id = #{hotelId} AND status = #{status}")
+    Long countReviewsByHotelAndStatus(
+            @Param("hotelId") Long hotelId,
+            @Param("status") String status
+    );
 }

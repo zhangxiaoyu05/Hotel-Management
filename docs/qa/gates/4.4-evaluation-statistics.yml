@@ -1,0 +1,75 @@
+schema: 1
+story: "4.4"
+story_title: "评价评分统计"
+gate: CONCERNS
+status_reason: "功能实现完整但存在严重的性能、架构和测试覆盖问题，需要重构"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-09T15:30:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "PERF-001"
+    severity: high
+    finding: "词云生成时加载所有评价到内存，存在OOM风险"
+    suggested_action: "使用数据库聚合查询或流式处理"
+    suggested_owner: "dev"
+  - id: "ARCH-001"
+    severity: high
+    finding: "ReviewAnalyticsService类过大（600+行），违反单一职责原则"
+    suggested_action: "拆分为多个专门的服务类（StatisticsService、TrendService等）"
+    suggested_owner: "dev"
+  - id: "TEST-001"
+    severity: medium
+    finding: "缺少全面的测试覆盖，特别是TextAnalysisService和前端组件"
+    suggested_action: "为所有服务类和组件编写单元测试和集成测试"
+    suggested_owner: "dev"
+  - id: "SEC-001"
+    severity: medium
+    finding: "缺少细粒度权限控制和API访问频率限制"
+    suggested_action: "实现基于酒店的权限验证和Rate Limiter"
+    suggested_owner: "dev"
+  - id: "MAINT-001"
+    severity: medium
+    finding: "大量硬编码数据，缺乏可配置性"
+    suggested_action: "使用配置文件管理所有参数"
+    suggested_owner: "dev"
+
+quality_score: 60
+
+evidence:
+  tests_reviewed: 1
+  risks_identified: 5
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: "基础权限验证存在，但缺少细粒度控制和频率限制"
+  performance:
+    status: FAIL
+    notes: "词云生成存在严重的内存问题，查询性能未优化"
+  reliability:
+    status: CONCERNS
+    notes: "异常处理过于宽泛，缺少降级和重试机制"
+  maintainability:
+    status: FAIL
+    notes: "类过大，硬编码过多，缺少配置管理"
+
+recommendations:
+  immediate:
+    - action: "修复词云生成的内存问题，使用数据库聚合查询"
+      refs: ["apps/api/src/main/java/com/hotel/service/ReviewAnalyticsService.java:370-396"]
+    - action: "将ReviewAnalyticsService拆分为多个服务类"
+      refs: ["apps/api/src/main/java/com/hotel/service/ReviewAnalyticsService.java"]
+    - action: "添加API访问频率限制"
+      refs: ["apps/api/src/main/java/com/hotel/controller/review/ReviewStatisticsController.java"]
+  future:
+    - action: "实现缓存预热机制提升性能"
+      refs: ["apps/api/src/main/java/com/hotel/service/ReviewAnalyticsService.java"]
+    - action: "添加结构化日志和性能监控"
+      refs: ["apps/api/src/main/java/com/hotel/service/*"]
+    - action: "完善测试覆盖率至80%以上"
+      refs: ["apps/api/src/test/", "apps/web/tests/"]

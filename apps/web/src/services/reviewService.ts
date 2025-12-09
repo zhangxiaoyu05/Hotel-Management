@@ -756,6 +756,193 @@ class ReviewService {
       throw error
     }
   }
+
+  // ========== 统计分析高级功能 API ==========
+
+  /**
+   * 获取综合评分统计
+   */
+  async getOverviewStatistics(hotelId: number, period: string = 'monthly'): Promise<ApiResponse<{
+    hotelId: number
+    totalReviews: number
+    overallRating: number
+    dimensionRatings: Record<string, number>
+    ratingDistribution: Record<string, number>
+    trendData: any[]
+    lastUpdated: string
+    period: string
+    yearOverYear: Record<string, any>
+    monthOverMonth: Record<string, any>
+  }>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews/statistics/overview', {
+        params: { hotelId, period }
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('获取综合评分统计失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取评分趋势数据
+   */
+  async getRatingTrends(
+    hotelId: number,
+    startDate: string,
+    endDate: string,
+    groupBy: string = 'day'
+  ): Promise<ApiResponse<Array<{
+    period: string
+    overallRating: number
+    dimensionRatings: Record<string, number>
+    reviewCount: number
+    nps: number
+    recommendationRate: number
+    averageResponseTime: number
+  }>>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews/statistics/trends', {
+        params: { hotelId, startDate, endDate, groupBy }
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('获取评分趋势数据失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取评价词云数据
+   */
+  async getWordCloud(hotelId: number, limit: number = 50): Promise<ApiResponse<Array<{
+    word: string
+    count: number
+    weight: number
+    sentiment: string
+    category: string
+    averageRating: number
+  }>>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews/statistics/wordcloud', {
+        params: { hotelId, limit }
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('获取词云数据失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取酒店对比分析数据
+   */
+  async getHotelComparison(hotelId: number, competitorIds?: number[]): Promise<ApiResponse<Array<{
+    hotelId: number
+    hotelName: string
+    overallRating: number
+    dimensionRatings: Record<string, number>
+    reviewCount: number
+    ranking: number
+    isCurrentHotel: boolean
+    deviationFromAverage: Record<string, number>
+  }>>> {
+    try {
+      const params: any = { hotelId }
+      if (competitorIds && competitorIds.length > 0) {
+        params.competitorIds = competitorIds.join(',')
+      }
+
+      const response = await apiClient.get('/v1/admin/reviews/statistics/comparison', { params })
+      return response.data
+    } catch (error: any) {
+      console.error('获取酒店对比分析数据失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取改进建议
+   */
+  async getSuggestions(hotelId: number, category?: string): Promise<ApiResponse<Array<{
+    id: number
+    category: string
+    title: string
+    description: string
+    priority: string
+    keywords: string[]
+    relatedReviewCount: number
+    expectedRatingImprovement: number
+    difficulty: string
+    estimatedCost: string
+    implementationTime: string
+    analysisResult: string
+  }>>> {
+    try {
+      const params: any = { hotelId }
+      if (category) {
+        params.category = category
+      }
+
+      const response = await apiClient.get('/v1/admin/reviews/statistics/suggestions', { params })
+      return response.data
+    } catch (error: any) {
+      console.error('获取改进建议失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 导出统计数据
+   */
+  async exportStatistics(hotelId: number, format: string = 'excel', period: string = 'monthly'): Promise<ApiResponse<string>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews/statistics/export', {
+        params: { hotelId, format, period }
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('导出统计数据失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 清空统计缓存
+   */
+  async clearStatisticsCache(): Promise<ApiResponse<string>> {
+    try {
+      const response = await apiClient.post('/v1/admin/reviews/statistics/cache/clear')
+      return response.data
+    } catch (error: any) {
+      console.error('清空统计缓存失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 获取统计概览
+   */
+  async getStatisticsSummary(hotelId: number): Promise<ApiResponse<{
+    totalReviews: number
+    overallRating: number
+    dimensionRatings: Record<string, number>
+    lastUpdated: string
+  }>> {
+    try {
+      const response = await apiClient.get('/v1/admin/reviews/statistics/summary', {
+        params: { hotelId }
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('获取统计概览失败:', error)
+      throw error
+    }
+  }
 }
 
 export default new ReviewService()
+
+// 导出单例实例
+export const reviewService = new ReviewService()

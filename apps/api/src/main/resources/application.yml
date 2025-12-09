@@ -80,6 +80,87 @@ app:
     max-file-size: ${MAX_FILE_SIZE:5242880}  # 5MB
     allowed-extensions: jpg,jpeg,png
 
+# 文本分析配置
+hotel:
+  text-analysis:
+    min-word-length: 2
+    min-word-frequency: 3
+    enable-sentiment-analysis: true
+    max-word-cloud-size: 100
+    stop-words:
+      - 的
+      - 了
+      - 在
+      - 是
+      - 我
+      - 有
+      - 和
+      - 就
+      - 不
+      - 人
+      - 都
+      - 一
+      - 一个
+      - 上
+      - 也
+      - 很
+    category-keywords:
+      service:
+        - 服务
+        - 服务员
+        - 前台
+        - 接待
+        - 客服
+        - 态度
+        - 热情
+        - 耐心
+        - 专业
+      cleanliness:
+        - 干净
+        - 清洁
+        - 卫生
+        - 整洁
+        - 灰尘
+        - 垃圾
+        - 脏
+        - 异味
+      facilities:
+        - 设施
+        - 设备
+        - 房间
+        - 床
+        - 空调
+        - 电视
+        - 热水
+        - WiFi
+      location:
+        - 位置
+        - 交通
+        - 方便
+        - 附近
+        - 市中心
+        - 地铁
+    positive-words:
+      - 好
+      - 棒
+      - 优秀
+      - 满意
+      - 喜欢
+      - 舒适
+      - 干净
+      - 热情
+      - 耐心
+    negative-words:
+      - 差
+      - 糟糕
+      - 失望
+      - 不满
+      - 不舒服
+      - 脏
+      - 乱
+      - 慢
+      - 态度差
+
 # 日志配置
 logging:
   level:
