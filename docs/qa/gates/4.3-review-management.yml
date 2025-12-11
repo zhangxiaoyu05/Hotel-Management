@@ -1,0 +1,69 @@
+schema: 1
+story: "4.3"
+story_title: "评价管理功能"
+gate: "CONCERNS"
+status_reason: "功能实现完整且质量良好，但缺少必要的测试覆盖"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-08T15:30:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "TEST-001"
+    severity: high
+    finding: "缺少后端服务层单元测试"
+    suggested_action: "为ReviewModerationService、ReviewReplyService、ReviewAnalyticsService添加单元测试"
+  - id: "TEST-002"
+    severity: high
+    finding: "缺少控制器集成测试"
+    suggested_action: "为ReviewManagementController添加集成测试，测试所有API端点"
+  - id: "TEST-003"
+    severity: medium
+    finding: "缺少前端管理组件测试"
+    suggested_action: "为评价管理相关的Vue组件添加单元测试"
+  - id: "PERF-001"
+    severity: medium
+    finding: "ReviewAnalyticsService使用模拟数据"
+    suggested_action: "实现真实的数据库查询逻辑，替换模拟数据"
+
+quality_score: 80
+expires: "2025-12-22T15:30:00Z"
+
+evidence:
+  tests_reviewed: 10
+  risks_identified: 3
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "权限控制和XSS防护实现完善，所有管理API都有权限验证，前端有完整的XSS防护工具"
+  performance:
+    status: CONCERNS
+    notes: "缓存策略良好，但分析服务使用模拟数据，需要实现真实查询"
+  reliability:
+    status: PASS
+    notes: "错误处理完善，有完整的日志记录机制"
+  maintainability:
+    status: PASS
+    notes: "代码结构清晰，遵循最佳实践，组件化程度高"
+
+recommendations:
+  immediate:
+    - action: "添加后端服务层单元测试"
+      refs: ["apps/api/src/main/java/com/hotel/service/ReviewModerationService.java",
+             "apps/api/src/main/java/com/hotel/service/ReviewReplyService.java",
+             "apps/api/src/main/java/com/hotel/service/ReviewAnalyticsService.java"]
+    - action: "添加控制器集成测试"
+      refs: ["apps/api/src/main/java/com/hotel/controller/review/ReviewManagementController.java"]
+    - action: "实现真实的数据查询逻辑"
+      refs: ["apps/api/src/main/java/com/hotel/service/ReviewAnalyticsService.java:153-224"]
+  future:
+    - action: "添加前端管理组件测试"
+      refs: ["apps/web/src/pages/admin/reviews/ReviewManagement.vue"]
+    - action: "优化批量操作的事务管理"
+      refs: ["apps/api/src/main/java/com/hotel/service/ReviewModerationService.java:62-95"]
+    - action: "添加批量操作的进度反馈"
+      refs: ["apps/web/src/components/business/review/BatchOperationsToolbar.vue"]

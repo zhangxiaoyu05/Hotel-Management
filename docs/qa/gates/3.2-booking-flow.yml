@@ -1,0 +1,62 @@
+schema: 1
+story: '3.2'
+story_title: '预订流程'
+gate: CONCERNS
+status_reason: '功能完整但前端测试完全缺失，存在性能优化空间'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-12-07T14:30:00+08:00'
+
+top_issues:
+  - severity: medium
+    description: '前端完全缺失单元测试和组件测试'
+    refs: ['apps/web/src/pages/booking/BookingWizard.vue', 'apps/web/src/components/business/PriceBreakdown.vue']
+    suggested_owner: dev
+  - severity: medium
+    description: '邮件服务同步发送，阻塞响应性能'
+    refs: ['apps/api/src/main/java/com/hotel/service/NotificationService.java']
+    suggested_owner: dev
+  - severity: low
+    description: '价格计算逻辑硬编码，缺乏扩展性'
+    refs: ['apps/api/src/main/java/com/hotel/service/OrderService.java']
+    suggested_owner: dev
+
+waiver:
+  active: false
+
+quality_score: 80
+expires: '2025-12-21T14:30:00+08:00'
+
+evidence:
+  tests_reviewed: 13
+  risks_identified: 6
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: '基本安全措施到位，但优惠券硬编码和缺少API限流存在风险'
+  performance:
+    status: CONCERNS
+    notes: '邮件同步发送阻塞性能，缺少缓存机制'
+  reliability:
+    status: PASS
+    notes: '事务管理完整，基本可靠性保证'
+  maintainability:
+    status: PASS
+    notes: '代码结构清晰，易于维护'
+
+recommendations:
+  immediate:
+    - action: '补充前端单元测试和组件测试'
+      refs: ['apps/web/src/pages/booking/', 'apps/web/src/components/business/']
+    - action: '实现邮件服务异步化'
+      refs: ['apps/api/src/main/java/com/hotel/service/NotificationService.java']
+  future:
+    - action: '抽取价格计算为独立服务'
+      refs: ['apps/api/src/main/java/com/hotel/service/OrderService.java']
+    - action: '添加API请求限流机制'
+      refs: ['apps/api/src/main/java/com/hotel/controller/order/OrderController.java']
+    - action: '实现Redis缓存层'
+      refs: ['apps/api/src/main/java/com/hotel/service/']

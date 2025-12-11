@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # MySQL数据库
+  mysql:
+    image: mysql:8.0
+    container_name: hotel-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: hotel_management
+      MYSQL_USER: hotel_user
+      MYSQL_PASSWORD: hotel_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./mysql/conf.d:/etc/mysql/conf.d
+    networks:
+      - hotel-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Redis缓存
+  redis:
+    image: redis:6.2-alpine
+    container_name: hotel-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - hotel-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 3s
+      retries: 5
+
+  # 前端应用 (开发环境)
+  frontend:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile.dev
+    container_name: hotel-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../apps/web:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8080/api
+    networks:
+      - hotel-network
+    depends_on:
+      - backend
+
+  # 后端应用 (开发环境)
+  backend:
+    build:
+      context: ../../apps/api
+      dockerfile: Dockerfile.dev
+    container_name: hotel-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../../apps/api:/app
+      - /app/target
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=hotel_management
+      - DB_USERNAME=hotel_user
+      - DB_PASSWORD=hotel_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=hotel-management-docker-secret-key
+    networks:
+      - hotel-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  hotel-network:
+    driver: bridge

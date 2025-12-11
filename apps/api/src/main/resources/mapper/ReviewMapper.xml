@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hotel.repository.ReviewRepository">
+
+    <!-- 分页查询评价（带筛选条件） -->
+    <select id="findReviewsWithFilters" resultType="com.hotel.entity.Review">
+        SELECT * FROM reviews
+        WHERE 1=1
+        <if test="hotelId != null">
+            AND hotel_id = #{hotelId}
+        </if>
+        <if test="roomId != null">
+            AND room_id = #{roomId}
+        </if>
+        <if test="minRating != null">
+            AND overall_rating >= #{minRating}
+        </if>
+        <if test="maxRating != null">
+            AND overall_rating &lt;= #{maxRating}
+        </if>
+        <if test="hasImages != null">
+            <if test="hasImages == true">
+                AND images IS NOT NULL AND images != ''
+            </if>
+            <if test="hasImages == false">
+                AND (images IS NULL OR images = '')
+            </if>
+        </if>
+        AND status = 'APPROVED'
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 统计评价数量（带筛选条件） -->
+    <select id="countReviewsWithFilters" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM reviews
+        WHERE 1=1
+        <if test="hotelId != null">
+            AND hotel_id = #{hotelId}
+        </if>
+        <if test="roomId != null">
+            AND room_id = #{roomId}
+        </if>
+        <if test="minRating != null">
+            AND overall_rating >= #{minRating}
+        </if>
+        <if test="maxRating != null">
+            AND overall_rating &lt;= #{maxRating}
+        </if>
+        <if test="hasImages != null">
+            <if test="hasImages == true">
+                AND images IS NOT NULL AND images != ''
+            </if>
+            <if test="hasImages == false">
+                AND (images IS NULL OR images = '')
+            </if>
+        </if>
+        AND status = 'APPROVED'
+    </select>
+
+    <!-- 分页查询管理评价 -->
+    <select id="findReviewsForManagement" resultType="com.hotel.entity.Review">
+        SELECT * FROM reviews
+        WHERE 1=1
+        <if test="status != null and status != ''">
+            AND status = #{status}
+        </if>
+        <if test="hotelId != null">
+            AND hotel_id = #{hotelId}
+        </if>
+        <if test="userId != null">
+            AND user_id = #{userId}
+        </if>
+        <if test="startDate != null">
+            AND created_at &gt;= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND created_at &lt;= #{endDate}
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 根据评价ID列表和酒店ID列表查找评价 -->
+    <select id="findReviewIdsByHotelIdsAndIds" resultType="com.hotel.entity.Review">
+        SELECT * FROM reviews
+        WHERE id IN
+        <foreach collection="reviewIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND hotel_id IN
+        <foreach collection="hotelIds" item="hotelId" open="(" separator="," close=")">
+            #{hotelId}
+        </foreach>
+    </select>
+
+</mapper>

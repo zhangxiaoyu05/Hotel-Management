@@ -1,0 +1,42 @@
+schema: 1
+story: '5.1'
+story_title: '管理员仪表板'
+gate: PASS
+status_reason: '所有功能已完整实现，包括后端API和前端界面，满足所有验收标准'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-12-11T15:00:00+08:00'
+
+top_issues: []
+
+waiver: { active: false }
+
+quality_score: 100
+expires: '2025-12-25T14:30:00+08:00'
+
+evidence:
+  tests_reviewed: 15
+  risks_identified: 3
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: '所有API端点都有ADMIN权限验证，使用Bearer Token认证，敏感数据已脱敏'
+  performance:
+    status: PASS
+    notes: '实现了多级缓存策略，定时任务预处理数据，批量查询优化'
+  reliability:
+    status: PASS
+    notes: '完善的错误处理和日志记录，缓存失效机制合理'
+  maintainability:
+    status: PASS
+    notes: '代码结构清晰，遵循Spring Boot最佳实践，文档完整'
+
+recommendations:
+  future:
+    - action: '考虑添加WebSocket实现真正的实时数据推送'
+      refs: ['apps/web/src/stores/dashboard.ts']
+    - action: '优化大数据量查询性能'
+      refs: ['apps/api/src/main/java/com/hotel/repository/OrderRepository.java']

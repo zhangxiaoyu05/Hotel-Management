@@ -1,0 +1,52 @@
+# 排除特定目录和文件
+.bmad-core/
+.claude/
+run_claude.bat
+
+# 排除常见的构建和IDE文件
+node_modules/
+target/
+dist/
+build/
+*.class
+*.jar
+*.war
+*.ear
+*.iml
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 排除日志文件
+*.log
+logs/
+
+# 排除操作系统文件
+.DS_Store
+Thumbs.db
+
+# 排除临时文件
+*.tmp
+*.temp
+*~
+
+# 排除环境配置文件
+.env
+.env.local
+.env.*.local
+
+# 排除包管理器文件
+package-lock.json
+yarn.lock
+
+# 排除测试覆盖率报告
+coverage/
+*.lcov
+
+# 排除依赖目录
+.pnp
+.pnp.js

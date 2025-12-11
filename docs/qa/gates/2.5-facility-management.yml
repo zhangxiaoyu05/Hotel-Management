@@ -1,0 +1,49 @@
+schema: 1
+story: "2.5"
+story_title: "酒店设施管理"
+gate: PASS
+status_reason: "所有验收标准已满足，后端API实现完整且质量优秀。关键安全问题已在审查过程中修复。"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-07T15:30:00Z"
+
+waiver: { active: false }
+
+top_issues: []
+
+quality_score: 90
+expires: "2025-12-21T15:30:00Z"
+
+evidence:
+  tests_reviewed: 29
+  risks_identified: 2
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "SQL注入漏洞已修复，实施适当的安全控制"
+  performance:
+    status: PASS
+    notes: "适当的数据库索引和高效的分页实现"
+  reliability:
+    status: PASS
+    notes: "事务管理良好，错误处理完善"
+  maintainability:
+    status: PASS
+    notes: "代码结构清晰，遵循最佳实践"
+
+recommendations:
+  immediate:
+    - action: "添加搜索功能的集成测试"
+      refs: ["apps/api/src/test/java/com/hotel/controller/facility/FacilityControllerTest.java"]
+    - action: "实现文件上传验证以确保图标安全性"
+      refs: ["apps/api/src/main/java/com/hotel/controller/facility/FacilityController.java"]
+  future:
+    - action: "考虑添加设施数据缓存层"
+      refs: ["apps/api/src/main/java/com/hotel/service/FacilityService.java"]
+    - action: "实施API速率限制保护"
+      refs: ["apps/api/src/main/java/com/hotel/controller/facility/FacilityController.java"]
+    - action: "添加酒店所有权验证"
+      refs: ["apps/api/src/main/java/com/hotel/service/FacilityService.java"]

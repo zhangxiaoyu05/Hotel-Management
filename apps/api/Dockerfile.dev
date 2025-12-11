@@ -1,0 +1,33 @@
+FROM maven:3.8.6-openjdk-11-slim
+
+# 安装必要的工具
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制Maven配置
+COPY pom.xml .
+
+# 下载Maven依赖
+RUN mvn dependency:go-offline
+
+# 复制源码
+COPY src ./src
+
+# 开发模式启动脚本
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# 监听文件变化并重新编译\n\
+mvn spring-boot:run -Dspring-boot.run.profiles=dev\n\
+' > /app/start-dev.sh && chmod +x /app/start-dev.sh
+
+# 暴露端口
+EXPOSE 8080
+
+# 默认启动命令
+CMD ["/app/start-dev.sh"]

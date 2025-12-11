@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hotel.repository.RoomTypeRepository">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.hotel.entity.RoomType">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="hotel_id" property="hotelId" jdbcType="BIGINT"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="capacity" property="capacity" jdbcType="INTEGER"/>
+        <result column="base_price" property="basePrice" jdbcType="DECIMAL"/>
+        <result column="facilities" property="facilities" jdbcType="LONGVARCHAR"/>
+        <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="icon_url" property="iconUrl" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+        <result column="deleted" property="deleted" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <!-- 分页查询房间类型列表 -->
+    <select id="selectRoomTypesWithPage" resultMap="BaseResultMap">
+        SELECT *
+        FROM room_types
+        <where>
+            deleted = 0
+            <if test="search != null and search != ''">
+                AND (name LIKE CONCAT('%', #{search}, '%')
+                OR description LIKE CONCAT('%', #{search}, '%'))
+            </if>
+            <if test="hotelId != null">
+                AND hotel_id = #{hotelId}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        <choose>
+            <when test="sortBy != null and sortBy != '' and sortDir != null and sortDir != ''">
+                ORDER BY ${sortBy} ${sortDir}
+            </when>
+            <otherwise>
+                ORDER BY created_at DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 根据酒店ID查询房间类型列表 -->
+    <select id="selectByHotelId" resultMap="BaseResultMap">
+        SELECT *
+        FROM room_types
+        WHERE hotel_id = #{hotelId}
+        AND deleted = 0
+        AND status = 'ACTIVE'
+        ORDER BY name ASC
+    </select>
+
+    <!-- 根据酒店ID和名称查找房间类型 -->
+    <select id="selectByHotelIdAndName" resultMap="BaseResultMap">
+        SELECT *
+        FROM room_types
+        WHERE hotel_id = #{hotelId}
+        AND name = #{name}
+        AND deleted = 0
+        LIMIT 1
+    </select>
+
+    <!-- 检查房间类型是否有关联的房间 -->
+    <select id="countAssociatedRooms" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM rooms
+        WHERE room_type_id = #{roomTypeId}
+        AND deleted = 0
+    </select>
+
+    <!-- 根据状态查询房间类型列表 -->
+    <select id="selectByStatus" resultMap="BaseResultMap">
+        SELECT *
+        FROM room_types
+        WHERE status = #{status}
+        AND deleted = 0
+        ORDER BY name ASC
+    </select>
+
+</mapper>

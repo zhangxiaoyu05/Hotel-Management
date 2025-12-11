@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hotel.repository.RoomStatusLogRepository">
+
+    <!-- 分页查询房间状态变更日志 -->
+    <select id="findByRoomIdWithPagination" resultType="com.hotel.entity.RoomStatusLog">
+        SELECT
+            id,
+            room_id,
+            old_status,
+            new_status,
+            reason,
+            changed_by,
+            order_id,
+            created_at,
+            deleted
+        FROM room_status_logs
+        WHERE room_id = #{roomId}
+        AND deleted = 0
+        <if test="startDate != null">
+            AND created_at >= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND created_at &lt;= #{endDate}
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 查询指定时间范围内的状态日志 -->
+    <select id="findByRoomIdAndTimeRange" resultType="com.hotel.entity.RoomStatusLog">
+        SELECT
+            id,
+            room_id,
+            old_status,
+            new_status,
+            reason,
+            changed_by,
+            order_id,
+            created_at,
+            deleted
+        FROM room_status_logs
+        WHERE room_id = #{roomId}
+        AND deleted = 0
+        <if test="startDate != null">
+            AND created_at >= #{startDate}
+        </if>
+        <if test="endDate != null">
+            AND created_at &lt;= #{endDate}
+        </if>
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 查询最近的状态变更记录 -->
+    <select id="findRecentByRoomId" resultType="com.hotel.entity.RoomStatusLog">
+        SELECT
+            id,
+            room_id,
+            old_status,
+            new_status,
+            reason,
+            changed_by,
+            order_id,
+            created_at,
+            deleted
+        FROM room_status_logs
+        WHERE room_id = #{roomId}
+        AND deleted = 0
+        ORDER BY created_at DESC
+        LIMIT #{limit}
+    </select>
+
+</mapper>

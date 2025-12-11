@@ -1,0 +1,7 @@
+-- 添加用户个人信息字段
+ALTER TABLE users
+ADD COLUMN nickname VARCHAR(100) COMMENT '昵称',
+ADD COLUMN avatar VARCHAR(255) COMMENT '头像URL',
+ADD COLUMN real_name VARCHAR(100) COMMENT '真实姓名',
+ADD COLUMN gender ENUM('MALE', 'FEMALE', 'OTHER') COMMENT '性别',
+ADD COLUMN birth_date DATE COMMENT '出生日期';

@@ -1,0 +1,19 @@
+{
+  "name": "@hotel/shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities for hotel management system",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "src/**/*"
+  ]
+}

@@ -1,0 +1,61 @@
+# <!-- Powered by BMAD™ Core -->
+
+schema: 1
+story: "1.3"
+story_title: "用户登录功能"
+gate: "CONCERNS"
+status_reason: "功能实现完整且安全措施得当，但缺少测试覆盖，需要补充单元测试和集成测试"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-06T00:00:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "TEST-001"
+    severity: medium
+    finding: "缺少登录功能的单元测试和集成测试"
+    suggested_action: "补充AuthController、UserService、JwtUtil和前端Login组件的测试用例"
+  - id: "SEC-001"
+    severity: medium
+    finding: "JWT默认密钥使用硬编码值，存在安全风险"
+    suggested_action: "通过环境变量配置JWT密钥，不在生产环境中使用默认值"
+  - id: "SEC-002"
+    severity: low
+    finding: "缺少登录失败次数限制机制"
+    suggested_action: "考虑实现登录失败次数限制和账户锁定机制"
+
+quality_score: 70
+expires: "2025-12-20T00:00:00Z"
+
+evidence:
+  tests_reviewed: 0
+  risks_identified: 3
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: "使用了BCrypt密码加密和JWT认证，但缺少登录失败限制和JWT黑名单机制"
+  performance:
+    status: PASS
+    notes: "登录流程性能良好，数据库操作优化合理"
+  reliability:
+    status: PASS
+    notes: "错误处理完善，用户体验良好"
+  maintainability:
+    status: PASS
+    notes: "代码结构清晰，遵循最佳实践"
+
+recommendations:
+  immediate:
+    - action: "补充登录相关的单元测试和集成测试"
+      refs: ["apps/api/src/main/java/com/hotel/controller/auth/AuthController.java", "apps/api/src/main/java/com/hotel/service/UserService.java"]
+    - action: "配置生产环境JWT密钥"
+      refs: ["apps/api/src/main/java/com/hotel/util/JwtUtil.java:21"]
+  future:
+    - action: "实现登录失败次数限制"
+      refs: ["apps/api/src/main/java/com/hotel/controller/auth/AuthController.java:92"]
+    - action: "添加JWT令牌黑名单机制"
+      refs: ["apps/api/src/main/java/com/hotel/util/JwtUtil.java"]

@@ -1,0 +1,93 @@
+# <!-- Powered by BMAD™ Core -->
+schema: 1
+story: "4.5"
+story_title: "评价激励系统"
+gate: "CONCERNS"
+status_reason: "系统功能基本实现，已修复关键安全漏洞，但仍存在测试覆盖不足、性能问题和未完成功能"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-09T15:30:00Z"
+
+waiver: { active: false }
+
+top_issues:
+  - id: "SEC-001"
+    severity: medium
+    finding: "用户枚举漏洞通过排行榜API暴露用户信息"
+    suggested_action: "✅ 已修复：添加用户名脱敏处理"
+    refs: ["ReviewQualityService.java:314-341"]
+
+  - id: "TEST-001"
+    severity: medium
+    finding: "测试覆盖率不足，部分核心服务缺乏测试"
+    suggested_action: "✅ 已改进：新增ReviewActivityServiceTest和ReviewReminderServiceTest，但仍需提高覆盖率"
+
+  - id: "PERF-001"
+    severity: medium
+    finding: "多处N+1查询问题影响系统性能"
+    suggested_action: "实现批处理查询，添加数据库索引优化"
+    refs: ["ReviewReminderService.java:56-111", "ReviewQualityService.java:243"]
+
+  - id: "SEC-002"
+    severity: medium
+    finding: "SpEL注入风险在活动管理中"
+    suggested_action: "✅ 已修复：添加活动类型白名单验证"
+    refs: ["ReviewActivityService.java:272-284"]
+
+  - id: "FUNC-001"
+    severity: medium
+    finding: "活动参与追踪功能未完整实现"
+    suggested_action: "完成ReviewActivityService中的占位符方法实现"
+    refs: ["ReviewActivityService.java:201-214"]
+
+quality_score: 80
+expires: "2025-12-23T15:30:00Z"
+
+evidence:
+  tests_reviewed: 4
+  risks_identified: 8
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "已修复用户枚举和SpEL注入漏洞，输入验证仍需完善"
+  performance:
+    status: CONCERNS
+    notes: "N+1查询问题需要优化，已部分改进首次评价查询"
+  reliability:
+    status: PASS
+    notes: "基础异常处理和事务管理到位"
+  maintainability:
+    status: PASS
+    notes: "代码结构清晰，遵循Spring Boot最佳实践，仍有重复逻辑可优化"
+
+recommendations:
+  immediate:
+    - action: "✅ 已完成：创建ReviewActivityServiceTest.java和ReviewReminderServiceTest.java"
+      refs: ["apps/api/src/test/unit/service/review/incentive/"]
+      owner: dev
+    - action: "修复所有N+1查询性能问题"
+      refs: ["ReviewReminderService.java", "ReviewQualityService.java"]
+      owner: dev
+    - action: "为所有API端点添加输入验证"
+      refs: ["ReviewActivityController.java", "ReviewReminderController.java"]
+      owner: dev
+    - action: "完成活动参与追踪功能实现"
+      refs: ["ReviewActivityService.java:201-214"]
+      owner: dev
+
+  future:
+    - action: "提取重复的质量评分逻辑到共享工具类"
+      refs: ["ReviewIncentiveService.java", "ReviewQualityService.java"]
+      owner: dev
+    - action: "添加数据库索引优化策略"
+      refs: ["database/migrations/"]
+      owner: dev
+    - action: "实现前端组件单元测试"
+      refs: ["apps/web/tests/unit/"]
+      owner: dev
+    - action: "创建端到端测试覆盖关键用户场景"
+      refs: ["tests/e2e/"]
+      owner: dev

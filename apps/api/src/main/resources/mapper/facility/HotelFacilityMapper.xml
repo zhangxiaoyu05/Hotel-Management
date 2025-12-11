@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hotel.repository.facility.HotelFacilityRepository">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.hotel.entity.facility.HotelFacility">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="hotel_id" property="hotelId" jdbcType="BIGINT"/>
+        <result column="category_id" property="categoryId" jdbcType="BIGINT"/>
+        <result column="name" property="name" jdbcType="VARCHAR"/>
+        <result column="description" property="description" jdbcType="VARCHAR"/>
+        <result column="icon" property="icon" jdbcType="VARCHAR"/>
+        <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="is_featured" property="isFeatured" jdbcType="BOOLEAN"/>
+        <result column="display_order" property="displayOrder" jdbcType="INTEGER"/>
+        <result column="created_at" property="createdAt" jdbcType="TIMESTAMP"/>
+        <result column="updated_at" property="updatedAt" jdbcType="TIMESTAMP"/>
+        <result column="deleted" property="deleted" jdbcType="INTEGER"/>
+    </resultMap>
+
+    <!-- 分页查询酒店设施列表 -->
+    <select id="selectFacilitiesWithPage" resultMap="BaseResultMap">
+        SELECT *
+        FROM hotel_facilities
+        <where>
+            deleted = 0
+            <if test="hotelId != null">
+                AND hotel_id = #{hotelId}
+            </if>
+            <if test="categoryId != null">
+                AND category_id = #{categoryId}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="isFeatured != null">
+                AND is_featured = #{isFeatured}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%')
+                OR description LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        <choose>
+            <when test="sortBy != null and sortBy != '' and sortDir != null and sortDir != ''">
+                <choose>
+                    <when test="sortBy == 'name'">
+                        ORDER BY name
+                        <if test="sortDir == 'DESC'">DESC</if>
+                        <if test="sortDir != 'DESC'">ASC</if>
+                    </when>
+                    <when test="sortBy == 'displayOrder'">
+                        ORDER BY display_order
+                        <if test="sortDir == 'DESC'">DESC</if>
+                        <if test="sortDir != 'DESC'">ASC</if>
+                    </when>
+                    <when test="sortBy == 'createdAt'">
+                        ORDER BY created_at
+                        <if test="sortDir == 'DESC'">DESC</if>
+                        <if test="sortDir != 'DESC'">ASC</if>
+                    </when>
+                    <when test="sortBy == 'status'">
+                        ORDER BY status
+                        <if test="sortDir == 'DESC'">DESC</if>
+                        <if test="sortDir != 'DESC'">ASC</if>
+                    </when>
+                    <otherwise>
+                        ORDER BY display_order ASC, created_at ASC
+                    </otherwise>
+                </choose>
+            </when>
+            <otherwise>
+                ORDER BY display_order ASC, created_at ASC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 根据酒店ID查询设施列表 -->
+    <select id="selectByHotelId" resultMap="BaseResultMap">
+        SELECT *
+        FROM hotel_facilities
+        WHERE hotel_id = #{hotelId}
+        AND deleted = 0
+        ORDER BY display_order ASC, created_at ASC
+    </select>
+
+    <!-- 根据分类ID查询设施列表 -->
+    <select id="selectByCategoryId" resultMap="BaseResultMap">
+        SELECT *
+        FROM hotel_facilities
+        WHERE category_id = #{categoryId}
+        AND deleted = 0
+        ORDER BY display_order ASC, created_at ASC
+    </select>
+
+    <!-- 根据酒店ID和分类ID查询设施列表 -->
+    <select id="selectByHotelIdAndCategoryId" resultMap="BaseResultMap">
+        SELECT *
+        FROM hotel_facilities
+        WHERE hotel_id = #{hotelId}
+        AND category_id = #{categoryId}
+        AND deleted = 0
+        ORDER BY display_order ASC, created_at ASC
+    </select>
+
+    <!-- 查询特色设施列表 -->
+    <select id="selectFeaturedByHotelId" resultMap="BaseResultMap">
+        SELECT *
+        FROM hotel_facilities
+        WHERE hotel_id = #{hotelId}
+        AND is_featured = 1
+        AND status = 'AVAILABLE'
+        AND deleted = 0
+        ORDER BY display_order ASC, created_at ASC
+    </select>
+
+    <!-- 检查设施名称是否已存在 -->
+    <select id="existsByName" resultType="boolean">
+        SELECT COUNT(1) > 0
+        FROM hotel_facilities
+        WHERE hotel_id = #{hotelId}
+        AND category_id = #{categoryId}
+        AND name = #{name}
+        AND deleted = 0
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+
+</mapper>
