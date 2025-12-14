@@ -119,6 +119,12 @@ public class CacheConfig {
         // 通知统计缓存 - 5分钟
         cacheConfigurations.put("notification-stats", config.entryTtl(Duration.ofMinutes(5)));
 
+        // 用户统计缓存 - 2分钟（统计数据变化相对频繁）
+        cacheConfigurations.put("user-statistics", config.entryTtl(Duration.ofMinutes(2)));
+
+        // 用户搜索结果缓存 - 5分钟
+        cacheConfigurations.put("user-search", config.entryTtl(Duration.ofMinutes(5)));
+
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(config)
                 .withInitialCacheConfigurations(cacheConfigurations)

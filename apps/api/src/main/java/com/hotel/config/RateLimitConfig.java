@@ -123,4 +123,34 @@ public class RateLimitConfig {
 
         return RateLimiterRegistry.of(config).rateLimiter("reviewStatisticsAPI");
     }
+
+    /**
+     * 用户管理批量操作限流配置
+     * 每分钟最多5次批量操作（防止系统过载）
+     */
+    @Bean("userBatchOperationRateLimiter")
+    public RateLimiter userBatchOperationRateLimiter() {
+        RateLimiterConfig config = RateLimiterConfig.custom()
+                .limitForPeriod(5)
+                .limitRefreshPeriod(Duration.ofMinutes(1))
+                .timeoutDuration(Duration.ofMillis(500))
+                .build();
+
+        return RateLimiterRegistry.of(config).rateLimiter("userBatchOperationAPI");
+    }
+
+    /**
+     * 用户管理单个操作限流配置
+     * 每分钟最多30次单个用户操作
+     */
+    @Bean("userSingleOperationRateLimiter")
+    public RateLimiter userSingleOperationRateLimiter() {
+        RateLimiterConfig config = RateLimiterConfig.custom()
+                .limitForPeriod(30)
+                .limitRefreshPeriod(Duration.ofMinutes(1))
+                .timeoutDuration(Duration.ofMillis(200))
+                .build();
+
+        return RateLimiterRegistry.of(config).rateLimiter("userSingleOperationAPI");
+    }
 }

@@ -1,0 +1,60 @@
+schema: 1
+story: "5.2"
+story_title: "用户管理"
+gate: "CONCERNS"
+status_reason: "Functionality complete but critical gaps in test coverage and missing security controls"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-12-14T15:30:00Z"
+
+top_issues:
+  - id: "TEST-001"
+    severity: "high"
+    finding: "No test coverage implemented - missing unit, integration, and e2e tests"
+    suggested_action: "Implement comprehensive test suite for all user management functionality"
+  - id: "SEC-001"
+    severity: "medium"
+    finding: "No rate limiting on batch operations endpoints"
+    suggested_action: "Add rate limiting middleware to prevent abuse of batch operations"
+  - id: "PERF-001"
+    severity: "low"
+    finding: "No caching for user statistics which could impact performance with large datasets"
+    suggested_action: "Implement Redis caching for user statistics data"
+
+waiver:
+  active: false
+
+quality_score: 70
+expires: "2025-12-28T15:30:00Z"
+
+evidence:
+  tests_reviewed: 0
+  risks_identified: 4
+  trace:
+    ac_covered: [1, 2, 3, 4, 5]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: "CONCERNS"
+    notes: "Missing rate limiting on batch operations, but proper authentication and data masking implemented"
+  performance:
+    status: "PASS"
+    notes: "Efficient pagination and database queries, but could benefit from caching"
+  reliability:
+    status: "PASS"
+    notes: "Good error handling and transaction management"
+  maintainability:
+    status: "PASS"
+    notes: "Well-structured code with clear separation of concerns"
+
+recommendations:
+  immediate:
+    - action: "Add comprehensive test coverage for all user management functions"
+      refs: ["apps/api/src/main/java/com/hotel/controller/admin/UserManagementController.java", "apps/web/src/pages/admin/users/UserManagement.vue"]
+    - action: "Implement rate limiting on batch operation endpoints"
+      refs: ["apps/api/src/main/java/com/hotel/controller/admin/UserManagementController.java:173-215"]
+  future:
+    - action: "Add Redis caching for user statistics"
+      refs: ["apps/api/src/main/java/com/hotel/service/UserManagementService.java:347-415"]
+    - action: "Consider implementing audit log retention policy"
+      refs: ["apps/api/src/main/java/com/hotel/service/UserOperationHistoryService.java"]
