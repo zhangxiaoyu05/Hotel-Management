@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hotel.repository.log.LoginLogRepository">
+
+    <!-- 登录日志结果映射 -->
+    <resultMap id="LoginLogResultMap" type="com.hotel.entity.log.LoginLog">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="login_type" property="loginType"/>
+        <result column="ip" property="ip"/>
+        <result column="location" property="location"/>
+        <result column="browser" property="browser"/>
+        <result column="os" property="os"/>
+        <result column="status" property="status"/>
+        <result column="message" property="message"/>
+        <result column="user_agent" property="userAgent"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <!-- 分页查询登录日志 -->
+    <select id="searchLogs" resultMap="LoginLogResultMap">
+        SELECT
+            id, username, login_type, ip, location, browser, os, status, message, user_agent, session_id, create_time
+        FROM login_logs
+        <where>
+            <if test="username != null and username != ''">
+                AND username LIKE CONCAT('%', #{username}, '%')
+            </if>
+            <if test="loginType != null and loginType != ''">
+                AND login_type = #{loginType}
+            </if>
+            <if test="startTime != null">
+                AND create_time >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND create_time &lt;= #{endTime}
+            </if>
+            <if test="ip != null and ip != ''">
+                AND ip LIKE CONCAT('%', #{ip}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        <choose>
+            <when test="sortField != null and sortField != '' and sortDirection != null and sortDirection != ''">
+                ORDER BY ${sortField} ${sortDirection}
+            </when>
+            <otherwise>
+                ORDER BY create_time DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 根据用户名查询登录日志 -->
+    <select id="findByUsername" resultMap="LoginLogResultMap">
+        SELECT
+            id, username, login_type, ip, location, browser, os, status, message, user_agent, session_id, create_time
+        FROM login_logs
+        WHERE username = #{username}
+        ORDER BY create_time DESC
+        <if test="limit != null and limit > 0">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <!-- 查询最近的登录失败记录 -->
+    <select id="findRecentFailedLogins" resultMap="LoginLogResultMap">
+        SELECT
+            id, username, login_type, ip, location, browser, os, status, message, user_agent, session_id, create_time
+        FROM login_logs
+        WHERE username = #{username}
+        AND status = 'FAILED'
+        AND create_time >= DATE_SUB(NOW(), INTERVAL #{minutes} MINUTE)
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 根据时间范围删除登录日志 -->
+    <delete id="deleteByTimeRange">
+        DELETE FROM login_logs
+        WHERE create_time &lt; #{endTime}
+    </delete>
+
+    <!-- 统计登录日志数量 -->
+    <select id="countByTimeRange" resultType="long">
+        SELECT COUNT(*)
+        FROM login_logs
+        <where>
+            <if test="startTime != null">
+                AND create_time >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND create_time &lt;= #{endTime}
+            </if>
+        </where>
+    </select>
+
+    <!-- 统计用户登录次数 -->
+    <select id="countByUsernameAndTimeRange" resultType="long">
+        SELECT COUNT(*)
+        FROM login_logs
+        WHERE username = #{username}
+        AND status = 'SUCCESS'
+        <if test="startTime != null">
+            AND create_time >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND create_time &lt;= #{endTime}
+        </if>
+    </select>
+
+</mapper>

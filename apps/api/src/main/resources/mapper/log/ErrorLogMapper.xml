@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hotel.repository.log.ErrorLogRepository">
+
+    <!-- 错误日志结果映射 -->
+    <resultMap id="ErrorLogResultMap" type="com.hotel.entity.log.ErrorLog">
+        <id column="id" property="id"/>
+        <result column="exception_type" property="exceptionType"/>
+        <result column="message" property="message"/>
+        <result column="stack_trace" property="stackTrace"/>
+        <result column="class_name" property="className"/>
+        <result column="method_name" property="methodName"/>
+        <result column="file_name" property="fileName"/>
+        <result column="line_number" property="lineNumber"/>
+        <result column="url" property="url"/>
+        <result column="params" property="params"/>
+        <result column="ip" property="ip"/>
+        <result column="user_agent" property="userAgent"/>
+        <result column="user_id" property="userId"/>
+        <result column="username" property="username"/>
+        <result column="level" property="level"/>
+        <result column="module" property="module"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <!-- 分页查询错误日志 -->
+    <select id="searchLogs" resultMap="ErrorLogResultMap">
+        SELECT
+            id, exception_type, message, stack_trace, class_name, method_name, file_name, line_number,
+            url, params, ip, user_agent, user_id, username, level, module, create_time
+        FROM error_logs
+        <where>
+            <if test="username != null and username != ''">
+                AND username LIKE CONCAT('%', #{username}, '%')
+            </if>
+            <if test="level != null and level != ''">
+                AND level = #{level}
+            </if>
+            <if test="module != null and module != ''">
+                AND module LIKE CONCAT('%', #{module}, '%')
+            </if>
+            <if test="startTime != null">
+                AND create_time >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND create_time &lt;= #{endTime}
+            </if>
+            <if test="ip != null and ip != ''">
+                AND ip LIKE CONCAT('%', #{ip}, '%')
+            </if>
+        </where>
+        <choose>
+            <when test="sortField != null and sortField != '' and sortDirection != null and sortDirection != ''">
+                ORDER BY ${sortField} ${sortDirection}
+            </when>
+            <otherwise>
+                ORDER BY create_time DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 根据用户ID查询错误日志 -->
+    <select id="findByUserId" resultMap="ErrorLogResultMap">
+        SELECT
+            id, exception_type, message, stack_trace, class_name, method_name, file_name, line_number,
+            url, params, ip, user_agent, user_id, username, level, module, create_time
+        FROM error_logs
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC
+        <if test="limit != null and limit > 0">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <!-- 根据模块名称查询错误日志 -->
+    <select id="findByModule" resultMap="ErrorLogResultMap">
+        SELECT
+            id, exception_type, message, stack_trace, class_name, method_name, file_name, line_number,
+            url, params, ip, user_agent, user_id, username, level, module, create_time
+        FROM error_logs
+        WHERE module = #{module}
+        ORDER BY create_time DESC
+        <if test="limit != null and limit > 0">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <!-- 统计错误日志按级别分组 -->
+    <select id="countByLevel" resultType="map">
+        SELECT
+            level as name,
+            COUNT(*) as value
+        FROM error_logs
+        <where>
+            <if test="startTime != null">
+                AND create_time >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND create_time &lt;= #{endTime}
+            </if>
+        </where>
+        GROUP BY level
+        ORDER BY value DESC
+    </select>
+
+    <!-- 统计错误日志按模块分组 -->
+    <select id="countByModule" resultType="map">
+        SELECT
+            module as name,
+            COUNT(*) as value
+        FROM error_logs
+        <where>
+            <if test="startTime != null">
+                AND create_time >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND create_time &lt;= #{endTime}
+            </if>
+        </where>
+        GROUP BY module
+        ORDER BY value DESC
+        LIMIT 10
+    </select>
+
+    <!-- 根据时间范围删除错误日志 -->
+    <delete id="deleteByTimeRange">
+        DELETE FROM error_logs
+        WHERE create_time &lt; #{endTime}
+    </delete>
+
+    <!-- 统计错误日志数量 -->
+    <select id="countByTimeRange" resultType="long">
+        SELECT COUNT(*)
+        FROM error_logs
+        <where>
+            <if test="startTime != null">
+                AND create_time >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND create_time &lt;= #{endTime}
+            </if>
+        </where>
+    </select>
+
+    <!-- 查询最近的错误记录 -->
+    <select id="findRecentErrors" resultMap="ErrorLogResultMap">
+        SELECT
+            id, exception_type, message, stack_trace, class_name, method_name, file_name, line_number,
+            url, params, ip, user_agent, user_id, username, level, module, create_time
+        FROM error_logs
+        WHERE create_time >= DATE_SUB(NOW(), INTERVAL #{minutes} MINUTE)
+        ORDER BY create_time DESC
+        <if test="limit != null and limit > 0">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+</mapper>
