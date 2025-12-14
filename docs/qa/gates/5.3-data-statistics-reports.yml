@@ -1,0 +1,104 @@
+# Quality Gate Decision for Story 5.3: Data Statistics Reports
+schema: 1
+story: "5.3"
+story_title: "数据统计报表"
+gate: "CONCERNS"
+status_reason: "报表系统架构良好但关键功能未完整实现，存在安全和性能问题"
+reviewer: "Quinn (Test Architect)"
+updated: "2024-12-14T15:30:00Z"
+
+waiver:
+  active: false
+
+top_issues:
+  - id: "FUNC-001"
+    severity: high
+    finding: "导出功能未实现，返回硬编码路径"
+    suggested_action: "实现真实的Excel和PDF文件生成功能"
+    suggested_owner: "dev"
+  - id: "FUNC-002"
+    severity: high
+    finding: "多处使用模拟数据而非真实数据库查询"
+    suggested_action: "实现房型、渠道等数据的真实查询逻辑"
+    suggested_owner: "dev"
+  - id: "SEC-001"
+    severity: high
+    finding: "报表API缺少速率限制保护"
+    suggested_action: "添加Spring Boot的速率限制中间件"
+    suggested_owner: "dev"
+  - id: "PERF-001"
+    severity: medium
+    finding: "前端图表组件存在内存泄漏"
+    suggested_action: "添加图表实例和事件监听器的清理逻辑"
+    suggested_owner: "dev"
+  - id: "TEST-001"
+    severity: medium
+    finding: "测试覆盖率不足，缺少集成测试"
+    suggested_action: "添加服务层单元测试和端到端集成测试"
+    suggested_owner: "dev"
+
+quality_score: 60
+expires: "2024-12-28T15:30:00Z"
+
+evidence:
+  tests_reviewed: 2
+  risks_identified: 7
+  trace:
+    ac_covered: [1, 2, 3, 4]
+    ac_gaps: [5]
+
+nfr_validation:
+  security:
+    status: "CONCERNS"
+    notes: "缺少速率限制、敏感数据未脱敏、无操作审计"
+  performance:
+    status: "CONCERNS"
+    notes: "存在N+1查询问题、缓存策略不精细、内存泄漏风险"
+  reliability:
+    status: "PASS"
+    notes: "基本的错误处理和缓存机制已实现"
+  maintainability:
+    status: "PASS"
+    notes: "代码结构清晰，遵循分层架构原则"
+
+recommendations:
+  immediate:
+    - action: "实现真实的导出文件生成功能"
+      refs: [
+        "apps/api/src/main/java/com/hotel/service/impl/ReportServiceImpl.java:232-240",
+        "apps/api/src/main/java/com/hotel/util/ExcelExporter.java",
+        "apps/api/src/main/java/com/hotel/util/PDFExporter.java"
+      ]
+    - action: "替换硬编码数据为真实数据库查询"
+      refs: [
+        "apps/api/src/main/java/com/hotel/service/impl/ReportServiceImpl.java:1005-1013",
+        "apps/api/src/main/java/com/hotel/service/impl/ReportServiceImpl.java:378-386",
+        "apps/api/src/main/java/com/hotel/service/impl/ReportServiceImpl.java:572"
+      ]
+    - action: "添加API速率限制保护"
+      refs: [
+        "apps/api/src/main/java/com/hotel/controller/admin/ReportController.java:1-200"
+      ]
+  future:
+    - action: "实现敏感数据脱敏处理"
+      refs: [
+        "apps/api/src/main/java/com/hotel/dto/report/UserReportDTO.java"
+      ]
+    - action: "添加管理员操作审计日志"
+      refs: [
+        "apps/api/src/main/java/com/hotel/controller/admin/ReportController.java"
+      ]
+    - action: "优化缓存策略，实现分布式缓存"
+      refs: [
+        "apps/api/src/main/java/com/hotel/service/impl/ReportServiceImpl.java"
+      ]
+    - action: "增加集成测试覆盖"
+      refs: [
+        "apps/api/src/test/",
+        "apps/web/tests/"
+      ]
+
+history:
+  - at: "2024-12-14T15:30:00Z"
+    gate: "CONCERNS"
+    note: "初始审查 - 关键功能未完整实现"

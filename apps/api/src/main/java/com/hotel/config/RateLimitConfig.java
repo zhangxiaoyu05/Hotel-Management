@@ -153,4 +153,34 @@ public class RateLimitConfig {
 
         return RateLimiterRegistry.of(config).rateLimiter("userSingleOperationAPI");
     }
+
+    /**
+     * 报表查询API限流配置
+     * 每分钟最多20次报表查询（防止系统过载）
+     */
+    @Bean("reportQueryRateLimiter")
+    public RateLimiter reportQueryRateLimiter() {
+        RateLimiterConfig config = RateLimiterConfig.custom()
+                .limitForPeriod(20)
+                .limitRefreshPeriod(Duration.ofMinutes(1))
+                .timeoutDuration(Duration.ofMillis(1000)) // 报表查询耗时较长，增加等待时间
+                .build();
+
+        return RateLimiterRegistry.of(config).rateLimiter("reportQueryAPI");
+    }
+
+    /**
+     * 报表导出API限流配置
+     * 每分钟最多5次导出操作（防止系统过载和资源滥用）
+     */
+    @Bean("reportExportRateLimiter")
+    public RateLimiter reportExportRateLimiter() {
+        RateLimiterConfig config = RateLimiterConfig.custom()
+                .limitForPeriod(5)
+                .limitRefreshPeriod(Duration.ofMinutes(1))
+                .timeoutDuration(Duration.ofMillis(2000)) // 导出操作更耗时
+                .build();
+
+        return RateLimiterRegistry.of(config).rateLimiter("reportExportAPI");
+    }
 }
