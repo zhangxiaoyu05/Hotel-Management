@@ -1,0 +1,25 @@
+-- 创建系统配置审计日志表
+CREATE TABLE `system_config_audit` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `config_key` varchar(255) NOT NULL COMMENT '配置键',
+  `config_type` varchar(50) NOT NULL COMMENT '配置类型：BASIC, BUSINESS, NOTIFICATION, SECURITY, BACKUP',
+  `old_value` text COMMENT '变更前的值',
+  `new_value` text COMMENT '变更后的值',
+  `is_encrypted` tinyint(1) DEFAULT 0 COMMENT '是否为加密数据',
+  `operation_type` varchar(20) NOT NULL COMMENT '操作类型：CREATE, UPDATE, DELETE',
+  `operator` varchar(100) NOT NULL COMMENT '操作人',
+  `operation_time` datetime NOT NULL COMMENT '操作时间',
+  `ip_address` varchar(50) COMMENT 'IP地址',
+  `user_agent` text COMMENT '用户代理',
+  `operation_result` varchar(20) NOT NULL COMMENT '操作结果：SUCCESS, FAILED',
+  `failure_reason` text COMMENT '失败原因',
+  `description` varchar(500) COMMENT '描述',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_config_key` (`config_key`),
+  KEY `idx_config_type` (`config_type`),
+  KEY `idx_operation_type` (`operation_type`),
+  KEY `idx_operator` (`operator`),
+  KEY `idx_operation_time` (`operation_time`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统配置审计日志表';

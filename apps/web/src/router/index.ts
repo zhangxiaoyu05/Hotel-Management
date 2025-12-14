@@ -81,6 +81,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../pages/admin/reports/ReportManagement.vue'),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
+  {
+    path: '/admin/settings',
+    name: 'SystemSettings',
+    component: () => import('../pages/admin/settings/SystemSettings.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
 ]
 
 const router = createRouter({
